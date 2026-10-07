@@ -1,0 +1,262 @@
+.classroom-workspace {
+  --classroom-controls-height: 164px;
+}
+
+/* Keep room for the classroom without changing other real-estate screens. */
+.realestate-page--classroom > header { margin-bottom: 0; }
+.realestate-page--classroom > header h1 { font-size: 26px; line-height: 32px; }
+.realestate-page--classroom > [data-tour='realestate-tabs'] > div { margin-bottom: 0; }
+.classroom-scene--readable { max-height: max(320px, calc(100dvh - 240px)); }
+
+@media (min-width: 768px) {
+  .classroom-workspace__editor-tools { min-height: var(--classroom-controls-height); }
+}
+
+.classroom-scene {
+  background: #e9d0ae url('../../../assets/realestate/classroom-floor-v2.png') 20% 60% / 155% auto no-repeat;
+  border: 10px solid #e6e3de;
+  box-shadow: inset 0 0 0 1px #cbbba5, 0 18px 45px rgb(67 46 22 / 12%);
+}
+
+.classroom-scene__front {
+  display: flex;
+  height: 38px;
+  align-items: center;
+  justify-content: center;
+  border-bottom: 1px solid rgb(117 86 51 / 24%);
+  background: rgb(255 249 238 / 68%);
+  color: #725a40;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .04em;
+}
+
+.classroom-scene__canvas {
+  background: transparent;
+}
+
+.classroom-desk {
+  --team-dot: transparent;
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  user-select: none;
+}
+
+/* Match each PNG's opaque tabletop bounds to the neutral desk at the same seat size. */
+.classroom-desk[data-team='team1'] { --team-dot: #eb6981; --desk-image-scale-x: 1.226; --desk-image-scale-y: 1.284; }
+.classroom-desk[data-team='team2'] { --team-dot: #3289e9; --desk-image-scale-x: 1.426; --desk-image-scale-y: 1.421; }
+.classroom-desk[data-team='team3'] { --team-dot: #36aa66; --desk-image-scale-x: 1.177; --desk-image-scale-y: 1.215; }
+.classroom-desk[data-team='team4'] { --team-dot: #e8b719; --desk-image-scale-x: 1.408; --desk-image-scale-y: 1.415; }
+.classroom-desk[data-team='team5'] { --team-dot: #9562dd; --desk-image-scale-x: 1.155; --desk-image-scale-y: 1.150; }
+.classroom-desk[data-team='team6'] { --team-dot: #627be0; --desk-image-scale-x: 1.233; --desk-image-scale-y: 1.260; }
+
+.classroom-desk__shape {
+  position: absolute;
+  inset: 0;
+  display: block;
+  pointer-events: none;
+}
+
+.classroom-desk__image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transform: scale(var(--desk-image-scale-x, 1.32), var(--desk-image-scale-y, 1.32));
+}
+
+.classroom-desk__shape::after {
+  content: '';
+  position: absolute;
+  top: 19%;
+  right: 3%;
+  bottom: 20%;
+  left: 3%;
+  border: 1.5px solid rgb(121 77 34 / 44%);
+  border-radius: 8%;
+  pointer-events: none;
+}
+
+.classroom-desk--overlapping .classroom-desk__shape::after {
+  border: 3px solid #dc2626;
+  box-shadow: 0 0 0 2px rgb(220 38 38 / 20%), 0 0 12px rgb(220 38 38 / 35%);
+}
+
+.classroom-desk--overlapping .classroom-desk__image,
+.classroom-desk--overlapping.classroom-desk--selected .classroom-desk__image {
+  filter: drop-shadow(0 0 5px rgb(220 38 38 / 65%));
+}
+
+.classroom-desk--selected .classroom-desk__image {
+  filter: drop-shadow(0 0 4px #2563eb);
+}
+
+.classroom-desk--property .classroom-desk__image {
+  transform: scale(1.32);
+  filter: saturate(.24) brightness(1.22) contrast(1.06) drop-shadow(0 4px 3px rgb(70 84 102 / 40%));
+}
+
+.classroom-desk--property.classroom-desk--selected .classroom-desk__image {
+  filter: saturate(.24) brightness(1.22) contrast(1.06) drop-shadow(0 0 5px #2563eb);
+}
+
+.classroom-desk__number,
+.classroom-desk__status {
+  position: absolute;
+  z-index: 1;
+  border-radius: 5px;
+  background: rgb(255 255 255 / 90%);
+  box-shadow: 0 1px 3px rgb(39 52 75 / 18%);
+  font-size: calc(9px * var(--desk-type-boost, 1));
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.classroom-desk__number {
+  top: 12%;
+  left: 5%;
+  min-width: 19px;
+  padding: 2px 3px;
+  color: #5d6a79;
+  text-align: center;
+  transform: translate(-10%, -25%);
+}
+
+.classroom-desk__status {
+  top: 12%;
+  right: 5%;
+  padding: 3px 5px;
+  border: 1px solid #66ad83;
+  background: #dbf4e5;
+  color: #145c39;
+  font-size: calc(10px * var(--desk-type-boost, 1));
+  font-weight: 900;
+  transform: translate(10%, -25%);
+}
+
+.classroom-desk__status--sale {
+  border-color: #da9d61;
+  background: #fff0d9;
+  color: #8f410f;
+}
+
+.classroom-desk__status--contract {
+  border-color: #a988ce;
+  background: #eee1fb;
+  color: #60338e;
+}
+
+.classroom-desk__status--mine {
+  border-color: #7c95da;
+  background: #e8edff;
+  color: #324c9e;
+}
+
+.classroom-desk__status--overdue {
+  border-color: #b91c1c;
+  background: #b91c1c;
+  color: #fff;
+}
+
+.classroom-desk__viewer-content {
+  position: absolute;
+  top: 30%;
+  right: 12%;
+  bottom: 27%;
+  left: 12%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  color: #1e293b;
+  text-align: center;
+  line-height: 1.12;
+  text-shadow: 0 1px rgb(255 255 255 / 75%);
+  pointer-events: none;
+}
+
+.classroom-desk__viewer-content strong,
+.classroom-desk__viewer-content small {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.classroom-desk__viewer-content strong { font-size: calc(17px * var(--desk-type-boost, 1)); font-weight: 800; }
+.classroom-desk__viewer-content small { font-size: calc(13px * var(--desk-type-boost, 1)); font-weight: 800; }
+.classroom-desk--property .classroom-desk__viewer-content { color: #334155; }
+.classroom-desk__viewer-content .classroom-desk__owner--private { color: #1d4ed8; }
+.classroom-desk__viewer-content .classroom-desk__owner--state { color: #334155; }
+.classroom-desk__student {
+  font-size: min(calc(20px * var(--desk-type-boost, 1)), calc(22px * var(--desk-display-scale, 1)));
+}
+
+.classroom-desk__content {
+  position: absolute;
+  top: 23%;
+  right: 8%;
+  bottom: 18%;
+  left: 8%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  color: #1e293b;
+  text-align: center;
+  pointer-events: none;
+  text-shadow: 0 1px rgb(255 255 255 / 75%);
+}
+
+.classroom-desk__label,
+.classroom-desk__student {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.classroom-desk__label { font-size: calc(10px * var(--desk-type-boost, 1)); font-weight: 700; line-height: 1.1; }
+.classroom-desk__student { font-weight: 800; line-height: 1.12; }
+.classroom-desk__student--moving { opacity: .3; }
+
+/* Viewer typography follows desk geometry. The editor keeps its type boost;
+   combining that boost with the saved desk size made viewer prices overflow. */
+.classroom-desk--viewer .classroom-desk__student { font-size: calc(26px * var(--desk-view-type-scale, 1)); }
+.classroom-desk--viewer .classroom-desk__label { font-size: calc(12px * var(--desk-view-type-scale, 1)); }
+.classroom-desk--viewer .classroom-desk__number { top: 19%; left: 10%; transform: none; font-size: calc(11px * var(--desk-view-type-scale, 1)); }
+.classroom-desk--viewer .classroom-desk__status { top: 19%; right: 10%; transform: none; font-size: calc(11px * var(--desk-view-type-scale, 1)); }
+.classroom-desk--viewer .classroom-desk__viewer-content strong { font-size: calc(24px * var(--desk-view-type-scale, 1)); }
+.classroom-desk--viewer .classroom-desk__viewer-content small { font-size: calc(18px * var(--desk-view-type-scale, 1)); font-variant-numeric: tabular-nums; }
+
+.classroom-desk__team-dot {
+  position: absolute;
+  top: 34%;
+  left: 15%;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--team-dot);
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 60%);
+  pointer-events: none;
+}
+
+.classroom-desk__center {
+  position: absolute;
+  top: calc(50% - 3px);
+  left: calc(50% - 3px);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #2563eb;
+  box-shadow: 0 0 0 2px white;
+  pointer-events: none;
+}

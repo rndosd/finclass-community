@@ -1,0 +1,3769 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =================================================
+    // [1] ??ㅻ쾹???筌뤾쑴理?雅?굝??뇡?????
+    // =================================================
+    function isLoggedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isLoggedIn() && request.auth.token.role == "admin";
+    }
+
+    function isTeacher() {
+      return isLoggedIn() && request.auth.token.role == "teacher";
+    }
+
+    function hasApprovedProfileRole(roleName) {
+      return isLoggedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == "approved" &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == roleName;
+    }
+
+    function isTeacherByUserProfile() {
+      return hasApprovedProfileRole("teacher");
+    }
+
+    // Teacher access must follow the active class bound to the teacher
+    // identity, not a stale student membership document left in another class.
+    function isTeacherForClass(classId) {
+      return (
+        isTeacher() &&
+        request.auth.token.classId != null &&
+        request.auth.token.classId == classId
+      ) || (
+        !isTeacher() &&
+        request.auth.token.classId == null &&
+        isTeacherByUserProfile() &&
+        isSameClassByUserProfile(classId)
+      );
+    }
+
+    function isCurrentNonTeacherClassMember(classId) {
+      return isLoggedIn() &&
+        !isTeacher() &&
+        !isTeacherByUserProfile() &&
+        (
+          (
+            request.auth.token.classId != null &&
+            request.auth.token.classId == classId
+          ) ||
+          (
+            request.auth.token.classId == null &&
+            isSameClassByUserProfile(classId)
+          )
+        );
+    }
+
+    function isStrictClassMember(classId) {
+      return isAdmin() ||
+        isTeacherForClass(classId) ||
+        isCurrentNonTeacherClassMember(classId);
+    }
+
+    function hasStrictClassPermission(classId, permissionKey) {
+      return isCurrentNonTeacherClassMember(classId) &&
+        hasTokenPermission(permissionKey);
+    }
+
+    // Class scope follows the active identity only. A stale membership document
+    // in a former class must never restore read or delegated write access.
+    function isSameClass(classId) {
+      return isStrictClassMember(classId);
+    }
+
+    // ??ルㅎ荑????뉖Ц??쒖굣??嶺뚯솘?????users ?熬곣뫁夷???リ옇?↑?fallback
+    // - ?獄???????껊땵 ???爰?classId)嶺??筌뤾쑴??
+    // - ?띠럾?????븐슙?뺞뤆?requestedClassId/classDocId)?? 雅?굝??뇡????????????? ???곷쾳
+    function isSameClassByUserProfile(classId) {
+      return isLoggedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get("classId", "") == classId;
+    }
+
+    function canReadClassScopedGroupDoc() {
+      return isLoggedIn() && (
+        isAdmin() ||
+        (request.auth.token.classId != null &&
+          resource.data.classId == request.auth.token.classId)
+      );
+    }
+
+    function canReadJobBoardApplicationGroupDoc() {
+      return isLoggedIn() && (
+        isAdmin() ||
+        (
+          resource.data.classId is string &&
+          isSameClass(resource.data.classId) &&
+          (
+            isTeacher() ||
+            request.auth.uid == resource.data.authorUid ||
+            request.auth.uid == resource.data.applicantUid ||
+            (
+              resource.data.memberUids is list &&
+              request.auth.uid in resource.data.memberUids
+            )
+          )
+        )
+      );
+    }
+
+    function canReadJobSeekerRequestGroupDoc() {
+      // Group queries prove class and participant scope, not service metadata.
+      // Service/request identity and field types are validated by creation.
+      return isLoggedIn() && (
+        isAdmin() ||
+        (
+          resource.data.classId is string &&
+          isSameClass(resource.data.classId) &&
+          (
+            isTeacher() ||
+            isTeacherByUserProfile() ||
+            request.auth.uid == resource.data.get("providerUid", "") ||
+            request.auth.uid == resource.data.get("requesterUid", "")
+          )
+        )
+      );
+    }
+
+    function canReadOwnVoterDoc() {
+      return isLoggedIn() && (
+        isAdmin() ||
+        (
+          resource.data.voterUid == request.auth.uid &&
+          (
+            resource.data.classId == null ||
+            isSameClass(resource.data.classId)
+          )
+        )
+      );
+    }
+
+    function isSameClassTeacherToUser(uid) {
+      return isTeacher() &&
+        request.auth.token.classId != null &&
+        get(/databases/$(database)/documents/users/$(uid)).data.classId == request.auth.token.classId;
+    }
+
+    function isSafeSelfUserUpdate(uid) {
+      return request.auth.uid == uid &&
+        request.resource.data.get("uid", "") == resource.data.get("uid", "") &&
+        request.resource.data.get("role", "") == resource.data.get("role", "") &&
+        request.resource.data.get("classId", "") == resource.data.get("classId", "") &&
+        request.resource.data.get("status", "") == resource.data.get("status", "") &&
+        request.resource.data.get("requestedClassId", "") == resource.data.get("requestedClassId", "") &&
+        request.resource.data.get("classDocId", "") == resource.data.get("classDocId", "") &&
+        request.resource.data.get("email", "") == resource.data.get("email", "");
+    }
+
+    // Privileged class-wide data such as activity logs remains limited to
+    // class staff or a deliberately delegated manager.
+    function canReadClassRoster(classId) {
+      return isAdmin() || (
+        isSameClass(classId) &&
+        (
+          isTeacher() ||
+          hasTokenPermission("a_bnk") ||
+          hasTokenPermission("a_ast") ||
+          hasTokenPermission("a_tax") ||
+          hasTokenPermission("a_lbr") ||
+          hasTokenPermission("a_pol") ||
+          hasTokenPermission("a_str") ||
+          hasTokenPermission("a_fiv") ||
+          hasTokenPermission("a_crd") ||
+          hasTokenPermission("a_crt") ||
+          hasTokenPermission("a_asm") ||
+          hasTokenPermission("a_msn") ||
+          hasTokenPermission("a_nws") ||
+          hasTokenPermission("a_rst") ||
+          hasTokenPermission("a_mkt")
+        )
+      );
+    }
+
+    function canReadStudentProfile(classId, studentUid) {
+      return isStrictClassMember(classId);
+    }
+
+    function canReadStudentDomainData(classId, studentUid, permissionKey) {
+      return isSameClass(classId) && (
+        request.auth.uid == studentUid ||
+        isTeacher() ||
+        isAdmin() ||
+        hasTokenPermission(permissionKey)
+      );
+    }
+
+    function canReadStudentPayrollData(classId, studentUid) {
+      return canReadStudentDomainData(classId, studentUid, "a_lbr") ||
+        canReadStudentDomainData(classId, studentUid, "a_tax");
+    }
+
+    function canReadStudentOperationalData(classId, studentUid) {
+      return isSameClass(classId) && (
+        request.auth.uid == studentUid ||
+        isTeacher() ||
+        isAdmin()
+      );
+    }
+
+    function canReadActivityLogGroupDoc() {
+      return resource.data.classId is string &&
+        canReadStudentOperationalData(resource.data.classId, resource.data.get("studentUid", ""));
+    }
+
+    function hasTokenPermission(permissionKey) {
+      return isLoggedIn() &&
+        request.auth.token.permissions != null &&
+        request.auth.token.permissions.keys().hasAny([permissionKey]) &&
+        request.auth.token.permissions[permissionKey] == true;
+    }
+
+    function canManageNewsContent(classId) {
+      return isAdmin() || (
+        isSameClass(classId) &&
+        (isTeacher() || hasTokenPermission("a_nws"))
+      );
+    }
+
+    function canManageCreditContent(classId) {
+      return isAdmin() || (
+        isSameClass(classId) &&
+        (isTeacher() || hasTokenPermission("a_crd"))
+      );
+    }
+
+    function canManageCredentialContent(classId) {
+      return isAdmin() || (
+        isSameClass(classId) &&
+        (isTeacher() || hasTokenPermission("a_crt"))
+      );
+    }
+
+    function canDesignCredentialContent(classId) {
+      return isAdmin() || (
+        isSameClass(classId) &&
+        (isTeacher() || hasTokenPermission("a_cds"))
+      );
+    }
+
+    function canManageOtherStudentCredentialContent(classId, studentUid) {
+      return canManageCredentialContent(classId) && (
+        isAdmin() || isTeacher() || request.auth.uid != studentUid
+      );
+    }
+
+    function isCredentialId(value) {
+      return value is string &&
+        value.size() > 0 &&
+        value.size() <= 256 &&
+        !value.matches(".*[/\\x00-\\x1f\\x7f].*");
+    }
+
+    function isCredentialText(value, maxLength) {
+      return value is string && value.size() <= maxLength;
+    }
+
+    function isValidTitleCollectionPreferenceUpdate() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          "titleCollectionVisibility",
+          "titleCollectionEmblemStage",
+          "updatedAt"
+        ]) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasAny([
+          "titleCollectionVisibility",
+          "titleCollectionEmblemStage"
+        ]) &&
+        (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+            "titleCollectionVisibility"
+          ]) ||
+          request.resource.data.titleCollectionVisibility in ["public", "private"]
+        ) &&
+        (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+            "titleCollectionEmblemStage"
+          ]) ||
+          (
+            request.resource.data.titleCollectionEmblemStage is int &&
+            request.resource.data.titleCollectionEmblemStage >= 1 &&
+            request.resource.data.titleCollectionEmblemStage <= 12
+          )
+        ) &&
+        request.resource.data.updatedAt is timestamp;
+    }
+
+    function isNullableTimestamp(value) {
+      return value == null || value is timestamp;
+    }
+
+    function isTitleRevealVisibility(value) {
+      return [
+        "public",
+        "blur",
+        "hidden"
+      ].hasAny([value]);
+    }
+
+    function isValidTitleRevealConfig(data) {
+      return data is map &&
+        data.keys().hasOnly([
+          "name",
+          "condition",
+          "nameplate"
+        ]) &&
+        isTitleRevealVisibility(data.name) &&
+        isTitleRevealVisibility(data.condition) &&
+        isTitleRevealVisibility(data.nameplate);
+    }
+
+    function isValidOwnedTitleIdentity(data, ownedId) {
+      return isCredentialId(ownedId) &&
+        data.titleId is string &&
+        data.titleId == ownedId &&
+        data.isRevoked is bool &&
+        data.equipped is bool &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidOwnedTitleStudentPreference(data) {
+      return data.equipped is bool &&
+        (
+          (
+            data.equipped == true &&
+            data.equippedOrder is int &&
+            data.equippedOrder >= 1 &&
+            data.equippedOrder <= 3
+          ) ||
+          (
+            data.equipped == false &&
+            data.equippedOrder == null
+          )
+        ) &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidOwnedCertificateIdentity(data, ownedId) {
+      return isCredentialId(ownedId) &&
+        data.certificateId is string &&
+        data.certificateId == ownedId &&
+        data.isRevoked is bool &&
+        isNullableTimestamp(data.revokedAt) &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidTitlePreferenceData(classId, docId, data) {
+      return docId == "selection" &&
+        data.keys().hasOnly([
+          "nextTargetTitleId",
+          "updatedAt"
+        ]) &&
+        data.updatedAt is timestamp &&
+        (
+          data.nextTargetTitleId == null ||
+          (
+            isCredentialId(data.nextTargetTitleId) &&
+            exists(
+              /databases/$(database)/documents/classes/$(classId)/titles/$(data.nextTargetTitleId)
+            )
+          )
+        );
+    }
+
+    function hasValidTitleRequestKeys(data) {
+      return data.keys().hasOnly([
+        "requestId",
+        "titleId",
+        "titleName",
+        "acquisitionCondition",
+        "categoryId",
+        "category",
+        "gradeId",
+        "rarity",
+        "version",
+        "icon",
+        "familyId",
+        "paletteId",
+        "trimPaletteId",
+        "ornamentSetId",
+        "fontStyleId",
+        "textScale",
+        "textOffsetY",
+        "textColorMode",
+        "customTextColor",
+        "customFrameColor",
+        "customBannerColor",
+        "customTrimColor",
+        "topDecoId",
+        "sideDecoId",
+        "bottomDecoId",
+        "patternId",
+        "effectId",
+        "revealConfig",
+        "revealMode",
+        "sourceType",
+        "studentUid",
+        "studentName",
+        "studentNumber",
+        "status",
+        "requestMessage",
+        "requestedAt",
+        "approvedAt",
+        "rejectedAt",
+        "reviewedAt",
+        "reviewedByUid",
+        "reviewedByName",
+        "reviewMessage",
+        "updatedAt"
+      ]);
+    }
+
+    function hasValidTitleRequestDisplayFields(data) {
+      return isCredentialText(data.titleName, 200) &&
+        isCredentialText(data.acquisitionCondition, 4000) &&
+        data.version is number &&
+        data.version >= 1 &&
+        data.version <= 1000 &&
+        isValidTitleRevealConfig(data.revealConfig) &&
+        isCredentialText(data.revealMode, 64);
+    }
+
+    function hasValidTitleRequestStudentFields(data) {
+      return isCredentialText(data.studentName, 200) &&
+        (
+          (
+            data.studentNumber is string &&
+            data.studentNumber.size() <= 32
+          ) ||
+          (
+            data.studentNumber is int &&
+            data.studentNumber >= 0 &&
+            data.studentNumber <= 9999
+          )
+        ) &&
+        isCredentialText(data.requestMessage, 1500) &&
+        data.requestedAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function hasValidTitleRequestReviewState(data) {
+      return (
+        data.status == "pending" &&
+        data.approvedAt == null &&
+        data.rejectedAt == null &&
+        data.reviewedAt == null &&
+        data.reviewedByUid == null &&
+        data.reviewedByName == "" &&
+        data.reviewMessage == "" &&
+        data.requestedAt == request.time &&
+        data.updatedAt == request.time
+      ) || (
+        data.status == "approved" &&
+        data.approvedAt == request.time &&
+        data.rejectedAt == null &&
+        data.reviewedAt == request.time &&
+        data.updatedAt == request.time &&
+        isCredentialId(data.reviewedByUid) &&
+        data.reviewedByUid == request.auth.uid &&
+        isCredentialText(data.reviewedByName, 200) &&
+        data.reviewedByName.size() > 0 &&
+        isCredentialText(data.reviewMessage, 1500)
+      ) || (
+        data.status == "rejected" &&
+        data.approvedAt == null &&
+        data.rejectedAt == request.time &&
+        data.reviewedAt == request.time &&
+        data.updatedAt == request.time &&
+        isCredentialId(data.reviewedByUid) &&
+        data.reviewedByUid == request.auth.uid &&
+        isCredentialText(data.reviewedByName, 200) &&
+        data.reviewedByName.size() > 0 &&
+        isCredentialText(data.reviewMessage, 1500)
+      );
+    }
+
+    function isValidTitleRequestData(
+      classId,
+      studentUid,
+      titleId,
+      requestId,
+      data
+    ) {
+      return hasValidTitleRequestKeys(data) &&
+        isCredentialId(studentUid) &&
+        isCredentialId(titleId) &&
+        isCredentialText(requestId, 520) &&
+        data.studentUid == studentUid &&
+        data.titleId == titleId &&
+        data.requestId == requestId &&
+        requestId == studentUid + "_" + titleId &&
+        data.sourceType == "claim_request" &&
+        hasValidTitleRequestDisplayFields(data) &&
+        hasValidTitleRequestStudentFields(data) &&
+        hasValidTitleRequestReviewState(data) &&
+        exists(
+          /databases/$(database)/documents/classes/$(classId)/students/$(studentUid)
+        ) &&
+        exists(
+          /databases/$(database)/documents/classes/$(classId)/titles/$(titleId)
+        );
+    }
+
+    function isStudentPendingTitleRequest(
+      classId,
+      studentUid,
+      titleId,
+      requestId
+    ) {
+      return isSameClass(classId) &&
+        request.auth.uid == studentUid &&
+        request.resource.data.status == "pending" &&
+        isValidTitleRequestData(
+          classId,
+          studentUid,
+          titleId,
+          requestId,
+          request.resource.data
+        );
+    }
+
+    function preservesTitleRequestIdentity(
+      studentUid,
+      titleId,
+      requestId
+    ) {
+      return resource.data.studentUid == studentUid &&
+        resource.data.titleId == titleId &&
+        resource.data.requestId == requestId;
+    }
+
+    // Older title requests can be missing newer display-only fields. A
+    // credential manager may still close those requests, but only by changing
+    // the review fields and without changing the student/title identity.
+    function isValidManagedTitleRequestReview(
+      studentUid,
+      titleId,
+      requestId
+    ) {
+      return isCredentialId(studentUid) &&
+        isCredentialId(titleId) &&
+        requestId == studentUid + "_" + titleId &&
+        resource.data.get("studentUid", "") == studentUid &&
+        resource.data.get("titleId", "") == titleId &&
+        request.resource.data.get("studentUid", "") == studentUid &&
+        request.resource.data.get("titleId", "") == titleId &&
+        resource.data.get("status", "pending") != "approved" &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          "status",
+          "approvedAt",
+          "rejectedAt",
+          "reviewedAt",
+          "reviewedByUid",
+          "reviewedByName",
+          "reviewMessage",
+          "updatedAt"
+        ]) &&
+        (
+          (
+            request.resource.data.status == "approved" &&
+            request.resource.data.approvedAt == request.time &&
+            request.resource.data.rejectedAt == null
+          ) ||
+          (
+            request.resource.data.status == "rejected" &&
+            request.resource.data.approvedAt == null &&
+            request.resource.data.rejectedAt == request.time
+          )
+        ) &&
+        request.resource.data.reviewedAt == request.time &&
+        request.resource.data.updatedAt == request.time &&
+        isCredentialId(request.resource.data.reviewedByUid) &&
+        request.resource.data.reviewedByUid == request.auth.uid &&
+        isCredentialText(request.resource.data.reviewedByName, 200) &&
+        request.resource.data.reviewedByName.size() > 0 &&
+        isCredentialText(request.resource.data.reviewMessage, 1500);
+    }
+
+    function canManageMissionContent(classId) {
+      return isAdmin() || (
+        isSameClass(classId) &&
+        (isTeacher() || hasTokenPermission("a_msn"))
+      );
+    }
+
+    function canManageBankContent(classId) {
+      return isAdmin() || (
+        isSameClass(classId) &&
+        (isTeacher() || hasTokenPermission("a_bnk"))
+      );
+    }
+
+    // store_admin 雅?굝??뇡????ルㅎ荑??꾩룇瑗??嶺뚯솘?????students ??쒖굣???リ옇?↑?fallback
+    function isStoreAdminByStudentDoc(classId) {
+      return isLoggedIn() &&
+        exists(/databases/$(database)/documents/classes/$(classId)/students/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/classes/$(classId)/students/$(request.auth.uid)).data.get("permissions", {}).get("store_admin", false) == true;
+    }
+
+    function canManageStoreContent(classId) {
+      return isAdmin() || (
+        isSameClass(classId) &&
+        (
+          isTeacher() ||
+          hasTokenPermission("a_str") ||
+          isStoreAdminByStudentDoc(classId)
+        )
+      );
+    }
+
+    // marketplace_admin 雅?굝??뇡????ルㅎ荑??꾩룇瑗??嶺뚯솘?????students ??쒖굣???リ옇?↑?fallback
+    function canManageVipStoreContent(classId) {
+      return isAdmin() || (
+        isSameClass(classId) &&
+        isTeacher()
+      );
+    }
+
+    function isVipStoreCategoryData(data) {
+      return data.get("type", "") == "vip" || data.get("categoryType", "") == "vip";
+    }
+
+    function isVipStoreCategoryId(classId, categoryId) {
+      return categoryId is string &&
+        exists(/databases/$(database)/documents/classes/$(classId)/storeCategories/$(categoryId)) &&
+        isVipStoreCategoryData(
+          get(/databases/$(database)/documents/classes/$(classId)/storeCategories/$(categoryId)).data
+        );
+    }
+
+    function isVipStoreItemData(classId, data) {
+      return data.categoryId is string &&
+        isVipStoreCategoryId(classId, data.categoryId);
+    }
+
+    function canReadVipStoreItem(classId, data) {
+      let category = get(/databases/$(database)/documents/classes/$(classId)/storeCategories/$(data.categoryId)).data;
+      let student = get(/databases/$(database)/documents/classes/$(classId)/students/$(request.auth.uid)).data;
+      let allowed = category.get("allowedStudentUids", category.get("vipStudentUids", []));
+      let selected = allowed is list && request.auth.uid in allowed;
+      let requiredTierId = category.get("minCreditTierId", "");
+      let tier = student.get("creditTier", {});
+      let tierMatch = requiredTierId is string && requiredTierId.size() > 0 &&
+        ((tier is map && tier.get("id", "") == requiredTierId) ||
+          (tier is string && tier == requiredTierId));
+      let minimum = category.get("minCreditTierMinScore", category.get("minCreditScore", -1));
+      let scoreMatch = minimum is number && minimum >= 0 &&
+        student.get("creditScore", -1) is number &&
+        student.get("creditScore", -1) >= minimum;
+      let mode = category.get("vipAccessMode", "");
+      return isCurrentNonTeacherClassMember(classId) &&
+        exists(/databases/$(database)/documents/classes/$(classId)/students/$(request.auth.uid)) &&
+        (
+          ((mode == "selected_students" || (mode == "" && requiredTierId == "")) && selected) ||
+          ((mode == "credit_tier" || (mode == "" && requiredTierId != "")) &&
+            (tierMatch || scoreMatch)) ||
+          (mode == "hybrid_or" && (selected || tierMatch || scoreMatch))
+        );
+    }
+
+    function isMarketplaceAdminByStudentDoc(classId) {
+      return isLoggedIn() &&
+        exists(/databases/$(database)/documents/classes/$(classId)/students/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/classes/$(classId)/students/$(request.auth.uid)).data.get("permissions", {}).get("marketplace_admin", false) == true;
+    }
+
+    function canManageMarketplaceContent(classId) {
+      return isAdmin() || (
+        isSameClass(classId) &&
+        (
+          isTeacher() ||
+          hasTokenPermission("a_mkt") ||
+          isMarketplaceAdminByStudentDoc(classId)
+        )
+      );
+    }
+
+    function canManageTaxContent(classId) {
+      return isAdmin() || (
+        isSameClass(classId) &&
+        (
+          isTeacher() ||
+          hasTokenPermission("a_tax")
+        )
+      );
+    }
+
+    function canManageTaxPayrollContent(classId) {
+      return isAdmin() || (
+        isSameClass(classId) &&
+        (
+          isTeacher() ||
+          hasTokenPermission("a_lbr")
+        )
+      );
+    }
+
+    function canManageRealEstateContent(classId) {
+      return isAdmin() || (
+        isSameClass(classId) &&
+        (isTeacher() || hasTokenPermission("a_rst"))
+      );
+    }
+
+    function canManageStockContent(classId) {
+      return isAdmin() || (
+        isSameClass(classId) && isTeacher()
+      );
+    }
+
+    function isManagedFundManager(classId, fundId) {
+      return isSameClass(classId) &&
+        request.auth != null &&
+        exists(/databases/$(database)/documents/classes/$(classId)/funds/$(fundId)) &&
+        get(/databases/$(database)/documents/classes/$(classId)/funds/$(fundId)).data.managerUid == request.auth.uid;
+    }
+
+    function canManageArcadeContent(classId) {
+      return isAdmin() || (
+        isSameClass(classId) && isTeacher()
+      );
+    }
+
+    function canManagePoliceContent(classId) {
+      return isAdmin() || (
+        isSameClass(classId) &&
+        (isTeacher() || hasTokenPermission("a_pol"))
+      );
+    }
+
+    function isMarketplaceAutoApprovalEnabled(classId) {
+      return exists(/databases/$(database)/documents/classes/$(classId)/marketplace_settings/approval) &&
+        get(/databases/$(database)/documents/classes/$(classId)/marketplace_settings/approval).data.get("autoApproveEnabled", false) == true;
+    }
+
+    function hasValidMarketplaceListingFields(data) {
+      return data.sellerName is string &&
+        data.sellerName.size() > 0 &&
+        data.sellerName.size() <= 200 &&
+        data.title is string &&
+        data.title.size() > 0 &&
+        data.title.size() <= 200 &&
+        data.description is string &&
+        data.description.size() <= 4000 &&
+        data.category is string &&
+        data.category.size() > 0 &&
+        data.category.size() <= 200 &&
+        data.type == "sale" &&
+        data.itemIcon is string &&
+        data.itemIcon.size() <= 100 &&
+        data.price is int &&
+        data.price > 0 &&
+        data.price <= 1000000000 &&
+        data.stock is int &&
+        data.stock > 0 &&
+        data.stock <= 10000 &&
+        data.initialStock is int &&
+        data.initialStock > 0 &&
+        data.initialStock <= 10000 &&
+        data.soldQuantity is int &&
+        data.soldQuantity >= 0 &&
+        data.soldQuantity <= data.initialStock;
+    }
+
+    function isValidStudentMarketplaceCreate(classId) {
+      return request.resource.data.keys().hasOnly([
+          "title",
+          "description",
+          "category",
+          "type",
+          "itemIcon",
+          "price",
+          "stock",
+          "initialStock",
+          "soldQuantity",
+          "sellerId",
+          "sellerName",
+          "approved",
+          "status",
+          "approvedAt",
+          "approvedBy",
+          "createdAt"
+        ]) &&
+        request.resource.data.sellerId == request.auth.uid &&
+        hasValidMarketplaceListingFields(request.resource.data) &&
+        request.resource.data.initialStock == request.resource.data.stock &&
+        request.resource.data.soldQuantity == 0 &&
+        request.resource.data.createdAt == request.time &&
+        (
+          (
+            request.resource.data.approved == false &&
+            request.resource.data.status == "pending" &&
+            request.resource.data.get("approvedAt", null) == null &&
+            request.resource.data.get("approvedBy", null) == null
+          ) ||
+          (
+            isMarketplaceAutoApprovalEnabled(classId) &&
+            request.resource.data.approved == true &&
+            request.resource.data.status == "active" &&
+            request.resource.data.approvedAt == request.time &&
+            request.resource.data.approvedBy == "system_auto"
+          )
+        );
+    }
+
+    function canManagePoliceRuleContent(classId) {
+      return isAdmin() || (
+        isSameClass(classId) &&
+        (isTeacher() || hasTokenPermission("a_prl"))
+      );
+    }
+
+    function isPoliceReflectionFeatureEnabled(classId) {
+      return !exists(/databases/$(database)/documents/classes/$(classId)/policeSettings/config) ||
+        get(/databases/$(database)/documents/classes/$(classId)/policeSettings/config).data.get("reflectionEnabled", true) != false;
+    }
+
+    function canReadAssemblyContent(classId) {
+      return isAdmin() || (
+        isSameClass(classId) &&
+        (
+          isTeacher() ||
+          hasTokenPermission("p_asm") ||
+          hasTokenPermission("a_asm")
+        )
+      );
+    }
+
+    function canProposeAssemblyContent(classId) {
+      return isAdmin() || (
+        isSameClass(classId) &&
+        (
+          isTeacher() ||
+          hasTokenPermission("a_asm")
+        )
+      );
+    }
+
+    function canManageAssemblyContent(classId) {
+      return isAdmin() || (
+        isSameClass(classId) && isTeacher()
+      );
+    }
+
+    function canReadAssemblyVoters(classId, billId) {
+      return canManageAssemblyContent(classId) || (
+        canReadAssemblyContent(classId) &&
+        (
+          (
+            get(/databases/$(database)/documents/classes/$(classId)/assemblyBills/$(billId)).data.status == "voting" &&
+            get(/databases/$(database)/documents/classes/$(classId)/assemblyBills/$(billId)).data.showVotersDuringVoting == true
+          ) ||
+          (
+            get(/databases/$(database)/documents/classes/$(classId)/assemblyBills/$(billId)).data.status != "voting" &&
+            get(/databases/$(database)/documents/classes/$(classId)/assemblyBills/$(billId)).data.showVotersAfterClose == true
+          )
+        )
+      );
+    }
+
+    // ???껊땵 ?リ옇?????戮?뻣 ???깆젧(classes/{classId}, displaySettings/*) ??㉱??
+    function canManageClassAdminContent(classId) {
+      return isAdmin() || (
+        isSameClass(classId) && isTeacher()
+      );
+    }
+
+    // ???껊땵 ??λ닔???筌먦끉?????깆젧(classes/{classId}.settings, taxSettings) ??㉱??
+    // - teacher/admin
+    // - tax_admin(a_tax), labor_admin(a_lbr), store_admin(a_str) ???뉖Ц??㉱?洹먮봿?????깅뮔
+    function canManageClassTaxSettings(classId) {
+      return isAdmin() || (
+        isSameClass(classId) &&
+        (
+          isTeacher() ||
+          hasTokenPermission("a_tax") ||
+          hasTokenPermission("a_lbr") ||
+          hasTokenPermission("a_str")
+        )
+      );
+    }
+
+    function canReadClassFundContent(classId) {
+      return isAdmin() ||
+        isTeacherForClass(classId) ||
+        hasStrictClassPermission(classId, "a_tax");
+    }
+
+    function isClassFundOperatorData(classId, fundData) {
+      return isCurrentNonTeacherClassMember(classId) &&
+        fundData.operatorUids is list &&
+        fundData.operatorUids.size() <= 100 &&
+        fundData.operatorUids.hasAny([request.auth.uid]);
+    }
+
+    function isClassFundOperator(classId, fundId) {
+      return isCurrentNonTeacherClassMember(classId) &&
+        exists(/databases/$(database)/documents/classes/$(classId)/classFunds/$(fundId)) &&
+        isClassFundOperatorData(
+          classId,
+          get(/databases/$(database)/documents/classes/$(classId)/classFunds/$(fundId)).data
+        );
+    }
+
+    function canReadClassFundInvestmentContent(classId, fundId) {
+      return isAdmin() ||
+        isTeacherForClass(classId) ||
+        hasStrictClassPermission(classId, "a_tax") ||
+        isClassFundOperator(classId, fundId);
+    }
+
+    function canReadClassEconomyAnalytics(classId) {
+      return isAdmin() ||
+        isTeacherForClass(classId) ||
+        hasStrictClassPermission(classId, "a_ast") ||
+        hasStrictClassPermission(classId, "a_tax");
+    }
+
+    function canReadClassEconomyBaseline(classId) {
+      return canReadClassEconomyAnalytics(classId) ||
+        hasStrictClassPermission(classId, "a_str");
+    }
+
+    function canManageClassPayrollContentStrict(classId) {
+      return isAdmin() ||
+        isTeacherForClass(classId) ||
+        hasStrictClassPermission(classId, "a_lbr");
+    }
+
+    function canManageClassTaxContentStrict(classId) {
+      return isAdmin() ||
+        isTeacherForClass(classId) ||
+        hasStrictClassPermission(classId, "a_tax");
+    }
+
+    function canManageClassCredentialContentStrict(classId) {
+      return isAdmin() ||
+        isTeacherForClass(classId) ||
+        hasStrictClassPermission(classId, "a_crt");
+    }
+
+    function canManageClassStoreContentStrict(classId) {
+      return isAdmin() ||
+        isTeacherForClass(classId) ||
+        hasStrictClassPermission(classId, "a_str") ||
+        (
+          isCurrentNonTeacherClassMember(classId) &&
+          isStoreAdminByStudentDoc(classId)
+        );
+    }
+
+    function canManageClassRealEstateContentStrict(classId) {
+      return isAdmin() ||
+        isTeacherForClass(classId) ||
+        hasStrictClassPermission(classId, "a_rst");
+    }
+
+    function canReadNotificationSummary(classId, summaryId) {
+      return (
+        summaryId == "assembly" &&
+        isStrictClassMember(classId)
+      ) ||
+        isAdmin() ||
+        isTeacherForClass(classId) ||
+        (
+          summaryId == "missions" &&
+          hasStrictClassPermission(classId, "a_msn")
+        ) ||
+        (
+          summaryId == "bank" &&
+          hasStrictClassPermission(classId, "a_bnk")
+        ) ||
+        (
+          summaryId == "credentials" &&
+          hasStrictClassPermission(classId, "a_crt")
+        ) ||
+        (
+          summaryId == "marketplace" &&
+          (
+            hasStrictClassPermission(classId, "a_mkt") ||
+            (
+              isCurrentNonTeacherClassMember(classId) &&
+              isMarketplaceAdminByStudentDoc(classId)
+            )
+          )
+        ) ||
+        (
+          summaryId == "police" &&
+          hasStrictClassPermission(classId, "a_pol")
+        );
+    }
+
+    function isValidStudentJobAssignment(classId, studentUid) {
+      // Preserve server bridge metadata during merge writes. Clients must not
+      // create, change, or remove it; payroll triggers rely on its provenance.
+      let preservesMirrorSource = resource == null
+        ? !request.resource.data.keys().hasAny(["mirrorSource"])
+        : !request.resource.data.diff(resource.data).affectedKeys()
+            .hasAny(["mirrorSource"]);
+      return request.resource.data.keys().hasOnly([
+          "studentUid",
+          "jobs",
+          "job",
+          "updatedAt",
+          "source",
+          "mirrorSource"
+        ]) &&
+        preservesMirrorSource &&
+        request.resource.data.studentUid == studentUid &&
+        request.resource.data.jobs is list &&
+        request.resource.data.jobs.size() <= 20 &&
+        request.resource.data.job is string &&
+        request.resource.data.job.size() <= 200 &&
+        request.resource.data.updatedAt == request.time &&
+        (
+          !request.resource.data.keys().hasAny(["source"]) ||
+          (
+            request.resource.data.source is string &&
+            request.resource.data.source.size() <= 100
+          )
+        ) &&
+        exists(
+          /databases/$(database)/documents/classes/$(classId)/students/$(studentUid)
+        );
+    }
+
+    function hasValidJobRecruitmentRoundShape(classId) {
+      return request.resource.data.keys().hasOnly([
+          "classId",
+          "title",
+          "status",
+          "allowMultipleApplications",
+          "allowCurrentJobApplications",
+          "replaceExistingJobsOnApproval",
+          "maxApplicationsPerStudent",
+          "maxApprovedJobsPerStudent",
+          "jobs",
+          "jobDefinitionIds",
+          "jobCount",
+          "applicationCount",
+          "submittedCount",
+          "approvedCount",
+          "rejectedCount",
+          "createdAt",
+          "updatedAt",
+          "startedAt",
+          "closedAt",
+          "createdByUid",
+          "createdByName",
+          "closedByUid",
+          "closedByName",
+          "statsUpdatedAt"
+        ]) &&
+        request.resource.data.classId == classId &&
+        request.resource.data.title is string &&
+        request.resource.data.title.size() > 0 &&
+        request.resource.data.title.size() <= 200 &&
+        request.resource.data.status in ["open", "closed"] &&
+        request.resource.data.allowMultipleApplications is bool &&
+        request.resource.data.allowCurrentJobApplications is bool &&
+        request.resource.data.replaceExistingJobsOnApproval is bool &&
+        request.resource.data.maxApplicationsPerStudent is int &&
+        request.resource.data.maxApplicationsPerStudent >= 1 &&
+        request.resource.data.maxApplicationsPerStudent <= 100 &&
+        request.resource.data.maxApprovedJobsPerStudent is int &&
+        request.resource.data.maxApprovedJobsPerStudent >= 1 &&
+        request.resource.data.maxApprovedJobsPerStudent <=
+          request.resource.data.maxApplicationsPerStudent &&
+        (
+          (
+            request.resource.data.allowMultipleApplications == false &&
+            request.resource.data.maxApplicationsPerStudent == 1 &&
+            request.resource.data.maxApprovedJobsPerStudent == 1
+          ) ||
+          (
+            request.resource.data.allowMultipleApplications == true &&
+            (
+              (
+                request.resource.data.replaceExistingJobsOnApproval == true &&
+                request.resource.data.maxApprovedJobsPerStudent == 1
+              ) ||
+              request.resource.data.replaceExistingJobsOnApproval == false
+            )
+          )
+        ) &&
+        request.resource.data.jobs is list &&
+        request.resource.data.jobs.size() > 0 &&
+        request.resource.data.jobs.size() <= 100 &&
+        request.resource.data.jobDefinitionIds is list &&
+        request.resource.data.jobDefinitionIds.size() ==
+          request.resource.data.jobs.size() &&
+        request.resource.data.jobCount is int &&
+        request.resource.data.jobCount == request.resource.data.jobs.size() &&
+        request.resource.data.applicationCount is int &&
+        request.resource.data.applicationCount >= 0 &&
+        request.resource.data.submittedCount is int &&
+        request.resource.data.submittedCount >= 0 &&
+        request.resource.data.approvedCount is int &&
+        request.resource.data.approvedCount >= 0 &&
+        request.resource.data.rejectedCount is int &&
+        request.resource.data.rejectedCount >= 0 &&
+        request.resource.data.createdByUid is string &&
+        request.resource.data.createdByUid.size() > 0 &&
+        request.resource.data.createdByUid.size() <= 256 &&
+        request.resource.data.createdByName is string &&
+        request.resource.data.createdByName.size() > 0 &&
+        request.resource.data.createdByName.size() <= 200 &&
+        request.resource.data.updatedAt == request.time;
+    }
+
+    function isValidJobRecruitmentRoundCreate(classId) {
+      return hasValidJobRecruitmentRoundShape(classId) &&
+        !request.resource.data.keys().hasAny(["statsUpdatedAt"]) &&
+        request.resource.data.status == "open" &&
+        request.resource.data.applicationCount == 0 &&
+        request.resource.data.submittedCount == 0 &&
+        request.resource.data.approvedCount == 0 &&
+        request.resource.data.rejectedCount == 0 &&
+        request.resource.data.createdAt == request.time &&
+        request.resource.data.startedAt == request.time &&
+        request.resource.data.createdByUid == request.auth.uid &&
+        request.resource.data.closedAt == null &&
+        request.resource.data.closedByUid == null &&
+        request.resource.data.closedByName == null;
+    }
+
+    function preservesJobRecruitmentPolicy() {
+      return request.resource.data.jobDefinitionIds.hasAll(
+          resource.data.jobDefinitionIds
+        ) &&
+        (
+          resource.data.allowMultipleApplications == false ||
+          request.resource.data.allowMultipleApplications == true
+        ) &&
+        (
+          resource.data.allowCurrentJobApplications == false ||
+          request.resource.data.allowCurrentJobApplications == true
+        ) &&
+        request.resource.data.replaceExistingJobsOnApproval ==
+          resource.data.replaceExistingJobsOnApproval &&
+        request.resource.data.maxApplicationsPerStudent >=
+          resource.data.maxApplicationsPerStudent &&
+        request.resource.data.maxApprovedJobsPerStudent >=
+          resource.data.maxApprovedJobsPerStudent;
+    }
+
+    function isValidJobRecruitmentRoundUpdate(classId) {
+      let affectedKeys = request.resource.data.diff(resource.data).affectedKeys();
+      let closesRound = resource.data.status == "open" &&
+        request.resource.data.status == "closed";
+      let keepsRoundOpen = resource.data.status == "open" &&
+        request.resource.data.status == "open";
+      return hasValidJobRecruitmentRoundShape(classId) &&
+        affectedKeys.hasOnly([
+          "title",
+          "status",
+          "allowMultipleApplications",
+          "allowCurrentJobApplications",
+          "replaceExistingJobsOnApproval",
+          "maxApplicationsPerStudent",
+          "maxApprovedJobsPerStudent",
+          "jobs",
+          "jobDefinitionIds",
+          "jobCount",
+          "updatedAt",
+          "closedAt",
+          "closedByUid",
+          "closedByName"
+        ]) &&
+        request.resource.data.classId == resource.data.classId &&
+        request.resource.data.createdAt == resource.data.createdAt &&
+        request.resource.data.startedAt == resource.data.startedAt &&
+        request.resource.data.createdByUid == resource.data.createdByUid &&
+        request.resource.data.createdByName == resource.data.createdByName &&
+        request.resource.data.applicationCount == resource.data.applicationCount &&
+        request.resource.data.submittedCount == resource.data.submittedCount &&
+        request.resource.data.approvedCount == resource.data.approvedCount &&
+        request.resource.data.rejectedCount == resource.data.rejectedCount &&
+        preservesJobRecruitmentPolicy() &&
+        (
+          !resource.data.keys().hasAny(["statsUpdatedAt"]) ||
+          request.resource.data.statsUpdatedAt == resource.data.statsUpdatedAt
+        ) &&
+        (
+          (
+            keepsRoundOpen &&
+            request.resource.data.closedAt == resource.data.closedAt &&
+            request.resource.data.closedByUid == resource.data.closedByUid &&
+            request.resource.data.closedByName == resource.data.closedByName
+          ) ||
+          (
+            closesRound &&
+            request.resource.data.closedAt == request.time &&
+            request.resource.data.closedByUid == request.auth.uid &&
+            request.resource.data.closedByName is string &&
+            request.resource.data.closedByName.size() > 0 &&
+            request.resource.data.closedByName.size() <= 200
+          )
+        );
+    }
+
+    function isValidRoundJobApplication(classId, docId) {
+      let roundPath = /databases/$(database)/documents/classes/$(classId)/jobRecruitmentRounds/$(request.resource.data.roundId);
+      let jobDefinitionPath = /databases/$(database)/documents/classes/$(classId)/jobDefinitions/$(request.resource.data.jobDefinitionId);
+      let round = get(roundPath).data;
+      let roundJobIndex = request.resource.data.get("roundJobIndex", -1);
+      return request.resource.data.keys().hasOnly([
+          "classId",
+          "roundId",
+          "roundTitle",
+          "roundJobIndex",
+          "studentUid",
+          "studentName",
+          "studentNumber",
+          "jobDefinitionId",
+          "jobName",
+          "jobDescription",
+          "baseSalary",
+          "experience",
+          "reason",
+          "status",
+          "allowMultipleApplications",
+          "allowCurrentJobApplications",
+          "replaceExistingJobsOnApproval",
+          "maxApplicationsPerStudent",
+          "maxApprovedJobsPerStudent",
+          "submittedAt",
+          "updatedAt",
+          "reviewedAt",
+          "approvedAt",
+          "approvedByUid",
+          "approvedByName",
+          "reviewerNote",
+          "rejectionReason"
+        ]) &&
+        exists(roundPath) &&
+        request.resource.data.classId == classId &&
+        request.resource.data.studentUid == request.auth.uid &&
+        docId == (
+          request.resource.data.roundId + "__" +
+          request.auth.uid + "__" +
+          request.resource.data.jobDefinitionId
+        ) &&
+        round.status == "open" &&
+        request.resource.data.jobDefinitionId in round.jobDefinitionIds &&
+        request.resource.data.roundTitle == round.title &&
+        request.resource.data.studentName is string &&
+        request.resource.data.studentName.size() > 0 &&
+        request.resource.data.studentName.size() <= 200 &&
+        (
+          request.resource.data.studentNumber is int ||
+          (
+            request.resource.data.studentNumber is string &&
+            request.resource.data.studentNumber.size() <= 32
+          )
+        ) &&
+        (
+          (
+            roundJobIndex is int &&
+            roundJobIndex >= 0 &&
+            roundJobIndex < round.jobs.size() &&
+            request.resource.data.jobDefinitionId == round.jobs[roundJobIndex].id &&
+            request.resource.data.jobName == round.jobs[roundJobIndex].name &&
+            request.resource.data.jobDescription ==
+              round.jobs[roundJobIndex].get("description", "") &&
+            request.resource.data.baseSalary == round.jobs[roundJobIndex].baseSalary
+          ) ||
+          (
+            roundJobIndex == -1 &&
+            exists(jobDefinitionPath) &&
+            request.resource.data.jobName == get(jobDefinitionPath).data.name &&
+            request.resource.data.jobDescription ==
+              get(jobDefinitionPath).data.get("description", "") &&
+            request.resource.data.baseSalary == get(jobDefinitionPath).data.baseSalary
+          )
+        ) &&
+        request.resource.data.allowMultipleApplications == round.allowMultipleApplications &&
+        request.resource.data.allowCurrentJobApplications == round.allowCurrentJobApplications &&
+        request.resource.data.replaceExistingJobsOnApproval == round.replaceExistingJobsOnApproval &&
+        request.resource.data.maxApplicationsPerStudent ==
+          round.get("maxApplicationsPerStudent", 1) &&
+        request.resource.data.maxApprovedJobsPerStudent ==
+          round.get("maxApprovedJobsPerStudent", 1) &&
+        request.resource.data.experience is string &&
+        request.resource.data.experience.size() <= 4000 &&
+        request.resource.data.reason is string &&
+        request.resource.data.reason.size() <= 4000 &&
+        request.resource.data.status == "submitted" &&
+        request.resource.data.submittedAt == request.time &&
+        request.resource.data.updatedAt == request.time &&
+        request.resource.data.reviewedAt == null &&
+        request.resource.data.approvedAt == null &&
+        request.resource.data.approvedByUid == null &&
+        request.resource.data.approvedByName == null &&
+        request.resource.data.reviewerNote == null &&
+        request.resource.data.rejectionReason == null;
+    }
+
+    function isValidEconConfigPatch() {
+      let changedKeys = resource == null
+        ? request.resource.data.keys()
+        : request.resource.data.diff(resource.data).affectedKeys();
+      return changedKeys.hasOnly([
+          "cpiBasket",
+          "cpiBasePrices",
+          "cpiBaseDate",
+          "cpiPresetId",
+          "cpiPresetUpdatedAt"
+        ]) &&
+        request.resource.data.cpiBasket is list &&
+        request.resource.data.cpiBasket.size() <= 100 &&
+        request.resource.data.cpiBasePrices is map &&
+        request.resource.data.cpiBaseDate is string &&
+        request.resource.data.cpiBaseDate.size() <= 32 &&
+        request.resource.data.cpiPresetId is string &&
+        request.resource.data.cpiPresetId.size() <= 100 &&
+        request.resource.data.cpiPresetUpdatedAt == request.time;
+    }
+
+    function canReadTaxBillGroupDoc() {
+      return isLoggedIn() && (
+        isAdmin() ||
+        (
+          request.auth.token.classId != null &&
+          resource.data.classId == request.auth.token.classId &&
+          (
+            isTeacher() ||
+            hasTokenPermission("a_tax") ||
+            resource.data.studentUid == request.auth.uid
+          )
+        )
+      );
+    }
+
+    function isServerOwnedStockStudentSubPath(path) {
+      return path.matches("^/?students/[^/]+/+stockDailySnapshots/.*$") ||
+        path.matches("^/?students/[^/]+/+stockDividendPayouts/.*$");
+    }
+
+    function isServerOwnedStockDocumentPath(path) {
+      return path.matches("^/?classes/[^/]+/+students/[^/]+/+stockDailySnapshots/.*$") ||
+        path.matches("^/?classes/[^/]+/+students/[^/]+/+stockDividendPayouts/.*$") ||
+        path.matches("^/?stockEtfProfileCache/.*$");
+    }
+
+    function isServerOnlyFinancialRiskDocumentPath(path) {
+      return path.matches("^/?riskDatasets/.*$") ||
+        path.matches("^/?riskConfig/.*$");
+    }
+
+    function isServerOwnedRealEstateLayoutPath(path) {
+      return path.matches("^/?classes/[^/]+/+real_estate/+(layout|grouping|placement)$");
+    }
+
+    function isFinancialRequestReceiptDocumentPath(path) {
+      return path.matches("^/?classes/[^/]+/+students/[^/]+/+idempotency/.*$");
+    }
+
+    function isServerOwnedMiniQuizAttemptPath(path) {
+      return path.matches("^/?classes/[^/]+/+arcade/[^/]+/+miniQuizAttempts(/.*)?$");
+    }
+
+    function isServerOwnedActivityLogStudentSubPath(path) {
+      return path.matches("^/?students/[^/]+/+activityLogs/.*$");
+    }
+
+    function isServerOwnedActivityLogDocumentPath(path) {
+      return path.matches("^/?classes/[^/]+/+students/[^/]+/+activityLogs/.*$");
+    }
+
+    function isServerOwnedAssetHistoryStudentSubPath(path) {
+      return path.matches("^/?students/[^/]+/+assetHistory/.*$");
+    }
+
+    function isServerOwnedAssetHistoryDocumentPath(path) {
+      return path.matches("^/?classes/[^/]+/+students/[^/]+/+assetHistory/.*$");
+    }
+
+    function isServerOwnedNotificationStateStudentSubPath(path) {
+      return path.matches("^/?students/[^/]+/+notificationState/.*$");
+    }
+
+    function isServerOwnedNotificationStateMainStudentSubPath(path) {
+      return path.matches("^/?students/[^/]+/+notificationState/+main$");
+    }
+
+    function isServerOwnedNotificationStateDocumentPath(path) {
+      return path.matches("^/?classes/[^/]+/+students/[^/]+/+notificationState/.*$");
+    }
+
+    function isServerOwnedNotificationStateMainDocumentPath(path) {
+      return path.matches("^/?classes/[^/]+/+students/[^/]+/+notificationState/+main$");
+    }
+
+    function isManagedCredentialStudentSubPath(path) {
+      return path.matches("^/?students/[^/]+/+ownedTitles/.*$") ||
+        path.matches("^/?students/[^/]+/+ownedCertificates/.*$") ||
+        path.matches("^/?students/[^/]+/+titleRequests/.*$") ||
+        path.matches("^/?students/[^/]+/+titlePreferences/.*$");
+    }
+
+    function isManagedCredentialClassSubPath(path) {
+      return path.matches("^/?titleRequests/.*$");
+    }
+
+    function isRetiredStudentSubPath(path) {
+      return path.matches("^/?students/[^/]+/+transactions/.*$") ||
+        path.matches("^/?students/[^/]+/+itemUsageHistory/.*$");
+    }
+
+    function isRetiredStudentDocumentPath(path) {
+      return path.matches("^/?classes/[^/]+/+students/[^/]+/+transactions/.*$") ||
+        path.matches("^/?classes/[^/]+/+students/[^/]+/+itemUsageHistory/.*$");
+    }
+
+    function isManagedStudentSubPath(path) {
+      return isServerOwnedStockStudentSubPath(path) ||
+        isServerOwnedActivityLogStudentSubPath(path) ||
+        isServerOwnedAssetHistoryStudentSubPath(path) ||
+        isServerOwnedNotificationStateStudentSubPath(path) ||
+        isManagedCredentialStudentSubPath(path) ||
+        isRetiredStudentSubPath(path) ||
+        path.matches("^students/[^/]+$") ||
+        path.matches("^students/[^/]+/savings/.*$") ||
+        path.matches("^students/[^/]+/loans/.*$") ||
+        path.matches("^students/[^/]+/idempotency/.*$") ||
+        path.matches("^students/[^/]+/newsPopupAcks/.*$") ||
+        path.matches("^students/[^/]+/newsPopupDismissals/.*$") ||
+        path.matches("^students/[^/]+/cart/.*$") ||
+        path.matches("^students/[^/]+/inventory/.*$") ||
+        path.matches("^students/[^/]+/storeUsage/.*$") ||
+        path.matches("^students/[^/]+/usageHistory/.*$") ||
+        path.matches("^students/[^/]+/taxBills/.*$") ||
+        path.matches("^students/[^/]+/monthEndSettlementStatements/.*$") ||
+        path.matches("^students/[^/]+/paySlips/.*$") ||
+        path.matches("^students/[^/]+/stockPortfolio/.*$") ||
+        path.matches("^students/[^/]+/tradeHistory/.*$") ||
+        path.matches("^students/[^/]+/creditLogs/.*$") ||
+        path.matches("^students/[^/]+/creditHistory/.*$") ||
+        path.matches("^students/[^/]+/missionState/.*$") ||
+        path.matches("^students/[^/]+/notifications/.*$");
+    }
+
+    // classes/{classId} ??瑜곷쭊???????⑹탳??write ??戮곕뇶 ?롪퍔?δ빳?嶺뚮ㅄ維뽨빳?
+    function isManagedSubPath(path) {
+      return isManagedCredentialClassSubPath(path) ||
+        isManagedStudentSubPath(path) ||
+        path.matches("^newsCategories/.*$") ||
+        path.matches("^news/.*$") ||
+        path.matches("^surveys/.*$") ||
+        path.matches("^assemblyBills/.*$") ||
+        path.matches("^assemblySettings/.*$") ||
+        path.matches("^policeRules/.*$") ||
+        path.matches("^policeReports/.*$") ||
+        path.matches("^policeFineHistory/.*$") ||
+        path.matches("^policeSettings/.*$") ||
+        path.matches("^policeDangerLabels/.*$") ||
+        path.matches("^reflections/.*$") ||
+        path.matches("^arcade/.*$") ||
+        path.matches("^arcadePrivate/.*$") ||
+        path.matches("^arcade_metadata/.*$") ||
+        path.matches("^miniQuizQuestionSets/.*$") ||
+        path.matches("^real_estate/.*$") ||
+        path.matches("^bank/.*$") ||
+        path.matches("^bankConfig/.*$") ||
+        path.matches("^storeCategories/.*$") ||
+        path.matches("^storeItems/.*$") ||
+        path.matches("^storeSettings/.*$") ||
+        path.matches("^storeLimitSummaries/.*$") ||
+        path.matches("^storeAnalyticsDaily/.*$") ||
+        path.matches("^policeAnalyticsDaily/.*$") ||
+        path.matches("^taxAnalyticsDaily/.*$") ||
+        path.matches("^missionAnalyticsDaily/.*$") ||
+        path.matches("^creditAnalyticsDaily/.*$") ||
+        path.matches("^realEstateAnalyticsDaily/.*$") ||
+        path.matches("^storeRedemptions/.*$") ||
+        path.matches("^taxRules/.*$") ||
+        path.matches("^classFunds/.*$") ||
+        path.matches("^fundUsages/.*$") ||
+        path.matches("^fundDailySettlements/.*$") ||
+        path.matches("^jobDefinitions/.*$") ||
+        path.matches("^jobApplications/.*$") ||
+        path.matches("^jobPosts/.*$") ||
+        path.matches("^jobPayments/.*$") ||
+        path.matches("^jobSeekerCategories/.*$") ||
+        path.matches("^jobSeekerServices/.*$") ||
+        path.matches("^jobSeekerPayments/.*$") ||
+        path.matches("^taxIncomes/.*$") ||
+        path.matches("^taxExpenses/.*$") ||
+        path.matches("^taxDaily/.*$") ||
+        path.matches("^donations/.*$") ||
+        path.matches("^donationStats/.*$") ||
+        path.matches("^donationUsages/.*$") ||
+        path.matches("^dashboardSummary/bankOverviewSavings$") ||
+        path.matches("^dashboardSummary/bankOverviewLoans$") ||
+        path.matches("^dashboardSummary/bankAdminPending$") ||
+        path.matches("^dashboardSummary/payrollOverview$") ||
+        path.matches("^dashboardSummary/donationSummary$") ||
+        path.matches("^dashboardSummary/agentDailySummary$") ||
+        path.matches("^dashboardSummary/missionsMain(/.*)?$") ||
+        path.matches("^dashboardSummary/missionStats(/.*)?$") ||
+        path.matches("^dashboardSummary/taxSummary$") ||
+        path.matches("^settings/missionViewSettings$") ||
+        path.matches("^displaySettings/.*$") ||
+        path.matches("^config/missionEconomy$") ||
+        path.matches("^config/stockMarket$") ||
+        path.matches("^stockInfo/.*$") ||
+        path.matches("^stockDividendPolicies/.*$") ||
+        path.matches("^caseLibraryPosts/.*$") ||
+        path.matches("^caseLibrarySavedPosts/.*$") ||
+        path.matches("^caseLibraryRecommendedPosts/.*$") ||
+        path.matches("^caseLibraryRequests/.*$") ||
+        path.matches("^caseLibraryRequestInterests/.*$") ||
+        path.matches("^fundApplications/.*$") ||
+        path.matches("^funds/.*$") ||
+        path.matches("^fundOrders/.*$") ||
+        path.matches("^fundPositions/.*$") ||
+        path.matches("^fundReports/.*$") ||
+        path.matches("^tierCriteria/.*$") ||
+        path.matches("^marketplace/.*$") ||
+        path.matches("^marketplace_categories/.*$") ||
+        path.matches("^marketplace_settings/.*$") ||
+        path.matches("^marketplace_transactions/.*$") ||
+        path.matches("^auction/.*$") ||
+        path.matches("^auction_bids/.*$") ||
+        path.matches("^missions/.*$");
+    }
+
+    function isRestrictedStudentDashboardSummaryPath(path) {
+      return path.matches("^students/[^/]+/dashboardSummary/.*$");
+    }
+
+    function isRestrictedStoreAdminSummaryPath(path) {
+      return path.matches("^storeLimitSummaries/.*$") ||
+        path.matches("^storeAnalyticsDaily/.*$");
+    }
+
+    function isNewsReactionPatchAllowed(classId) {
+      return isSameClass(classId) &&
+        request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          "likes",
+          "commentsCount",
+          "interactionScore",
+          "updatedAt"
+        ]);
+    }
+
+    function isNewsCommentCreateAllowed(classId) {
+      return isSameClass(classId) &&
+        request.resource.data.authorUid == request.auth.uid &&
+        request.resource.data.content is string &&
+        request.resource.data.content.size() > 0 &&
+        request.resource.data.content.size() <= 1000;
+    }
+
+    function isNewsCommentDeleteAllowed(classId) {
+      return isSameClass(classId) && (
+        canManageNewsContent(classId) ||
+        resource.data.authorUid == request.auth.uid
+      );
+    }
+
+    function isPoliceReflectionStatusValue(status) {
+      return status == "none" ||
+        status == "draft" ||
+        status == "submitted" ||
+        status == "approved" ||
+        status == "rejected";
+    }
+
+    function isPoliceReflectionSubmissionTypeValue(type) {
+      return type == null ||
+        type == "reflection" ||
+        type == "appeal";
+    }
+
+    function isPoliceReflectionReviewOutcomeValue(outcome) {
+      return outcome == null ||
+        outcome == "approved" ||
+        outcome == "adjusted";
+    }
+
+    function isPoliceFineHistoryReflectionPatchAllowed(classId) {
+      return isPoliceReflectionFeatureEnabled(classId) &&
+        isSameClass(classId) &&
+        request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          "hasReflection",
+          "reflectionStatus",
+          "reflectionUpdatedAt",
+          "reflectionSubmittedAt",
+          "reflectionReviewedAt",
+          "submissionType",
+          "reviewOutcome"
+        ]) &&
+        isPoliceReflectionStatusValue(request.resource.data.reflectionStatus) &&
+        isPoliceReflectionSubmissionTypeValue(request.resource.data.submissionType) &&
+        isPoliceReflectionReviewOutcomeValue(request.resource.data.reviewOutcome) &&
+        (
+          canManagePoliceContent(classId) ||
+          (
+            request.auth.uid == resource.data.studentUid &&
+            (
+              request.resource.data.reflectionStatus == "submitted" ||
+              request.resource.data.reflectionStatus == "none"
+            ) &&
+            request.resource.data.reviewOutcome == null
+          )
+        );
+    }
+
+    function isPoliceReflectionStudentPatchAllowed(classId) {
+      return isPoliceReflectionFeatureEnabled(classId) &&
+        isSameClass(classId) &&
+        request.auth.uid == resource.data.studentUid &&
+        request.resource.data.studentUid == resource.data.studentUid &&
+        request.resource.data.classId == resource.data.classId &&
+        request.resource.data.fineId == resource.data.fineId &&
+        request.resource.data.studentName == resource.data.studentName &&
+        request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          "reflectionText",
+          "submissionType",
+          "status",
+          "submittedAt",
+          "updatedAt",
+          "reviewedAt",
+          "reviewedByUid",
+          "reviewedByName",
+          "teacherComment"
+        ]) &&
+        (
+          request.resource.data.status == "draft" ||
+          request.resource.data.status == "submitted"
+        );
+    }
+
+    function isPoliceReflectionReviewerPatchAllowed(classId) {
+      return isPoliceReflectionFeatureEnabled(classId) &&
+        canManagePoliceContent(classId) &&
+        request.resource.data.studentUid == resource.data.studentUid &&
+        request.resource.data.classId == resource.data.classId &&
+        request.resource.data.fineId == resource.data.fineId &&
+        request.resource.data.studentName == resource.data.studentName &&
+        request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          "status",
+          "reviewedAt",
+          "reviewedByUid",
+          "reviewedByName",
+          "teacherComment",
+          "updatedAt"
+        ]) &&
+        isPoliceReflectionStatusValue(request.resource.data.status);
+    }
+
+    function isStudentLoanLimitRatioPatch(path) {
+      return path.matches("^students/[^/]+$") &&
+        resource != null &&
+        request.resource.data.diff(resource.data).changedKeys().hasAny([
+          "loanLimitRatio"
+        ]);
+    }
+
+    function isClassDocBasicSettingsPatch() {
+      return resource != null &&
+        request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          "classDocId",
+          "schoolName",
+          "grade",
+          "classNum",
+          "className",
+          "teacherName",
+          "teacherDisplayName",
+          "currencyUnit",
+          "numberFormat",
+          "updatedAt"
+        ]);
+    }
+
+    function isClassDocTaxSettingsPatch() {
+      return resource != null &&
+        request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          "settings",
+          "taxSettings",
+          "taxPolicy"
+        ]);
+    }
+
+    function isClassDocMissionLegacyPatch() {
+      return resource != null &&
+        request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          "missionViewSettings"
+        ]);
+    }
+
+    function isStudentPayrollJobPatch(path) {
+      return path.matches("^students/[^/]+$") &&
+        resource != null &&
+        request.resource.data.diff(resource.data).changedKeys().hasAny([
+          "jobs",
+          "job",
+          "lastUpdated"
+        ]);
+    }
+
+    function isStudentGenderPatch(path) {
+      return path.matches("^students/[^/]+$") &&
+        resource != null &&
+        request.resource.data.diff(resource.data).changedKeys().hasAny([
+          "gender"
+        ]);
+    }
+
+    function isNonNegativeNumber(v) {
+      return (v is int || v is float) && v >= 0;
+    }
+
+    // Client-side donation summary writes are limited to teacher-managed display settings.
+    function isDonationSummaryTeacherPatch() {
+      let changedKeys = resource == null
+        ? request.resource.data.keys()
+        : request.resource.data.diff(resource.data).changedKeys();
+      let validGoalPatch = !changedKeys.hasAny(["goalAmount"]) ||
+        isNonNegativeNumber(request.resource.data.goalAmount);
+      let validLeaderboardPatch = !changedKeys.hasAny(["showLeaderboardToStudents"]) ||
+        (request.resource.data.showLeaderboardToStudents is bool);
+
+      return changedKeys.hasOnly([
+        "goalAmount",
+        "showLeaderboardToStudents"
+      ]) &&
+      validGoalPatch &&
+      validLeaderboardPatch;
+    }
+
+    function canReadSharedCaseLibrary(classId) {
+      return canInteractWithSharedCaseLibrary();
+    }
+
+    function canReadSharedCaseLibraryGroupDoc() {
+      return canInteractWithSharedCaseLibrary();
+    }
+
+    function canInteractWithSharedCaseLibrary() {
+      return isLoggedIn() && (
+        isAdmin() ||
+        isTeacher() ||
+        isTeacherByUserProfile()
+      );
+    }
+
+    function isCaseLibraryPostCreateAllowed(classId) {
+      return canInteractWithSharedCaseLibrary() &&
+        isSameClass(classId) &&
+        request.auth.uid == request.resource.data.authorUid &&
+        request.resource.data.classId == classId;
+    }
+
+    function isCaseLibraryPostAuthorUpdateAllowed(classId) {
+      return canInteractWithSharedCaseLibrary() &&
+        isSameClass(classId) &&
+        request.auth.uid == resource.data.authorUid &&
+        request.resource.data.authorUid == resource.data.authorUid &&
+        request.resource.data.classId == resource.data.classId &&
+        request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          "pageType",
+          "postKind",
+          "requestId",
+          "title",
+          "bodyHtml",
+          "bodyText",
+          "summary",
+          "authorName",
+          "classLabel",
+          "teacherNamePublic",
+          "templateEnabled",
+          "templateScopeIds",
+          "template",
+          "templatePayload",
+          "updatedAt"
+        ]);
+    }
+
+    function isCaseLibraryPostInteractionMetricPatch() {
+      return canInteractWithSharedCaseLibrary() &&
+        request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          "metrics",
+          "saveCount",
+          "recommendCount",
+          "commentCount",
+          "viewCount",
+          "lastActivityAt"
+        ]) &&
+        request.resource.data.metrics.saveCount == request.resource.data.saveCount &&
+        request.resource.data.metrics.recommendCount == request.resource.data.recommendCount &&
+        request.resource.data.metrics.commentCount == request.resource.data.commentCount &&
+        request.resource.data.metrics.viewCount == request.resource.data.viewCount &&
+        request.resource.data.metrics.applyCount == resource.data.metrics.applyCount &&
+        request.resource.data.applyCount == resource.data.applyCount;
+    }
+
+    function isCaseLibraryCommentCreateAllowed(classId, postId) {
+      return canInteractWithSharedCaseLibrary() &&
+        request.auth.uid == request.resource.data.authorUid &&
+        request.resource.data.classId == classId &&
+        request.resource.data.postId == postId;
+    }
+
+    function isCaseLibraryCommentAuthorUpdateAllowed() {
+      return canInteractWithSharedCaseLibrary() &&
+        request.auth.uid == resource.data.authorUid &&
+        request.resource.data.authorUid == resource.data.authorUid &&
+        request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          "content",
+          "updatedAt"
+        ]);
+    }
+
+    function isCaseLibraryCommentRecommendPatch() {
+      return canInteractWithSharedCaseLibrary() &&
+        request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          "recommendCount"
+        ]);
+    }
+
+    function isCaseLibraryRequestCreateAllowed(classId) {
+      return canInteractWithSharedCaseLibrary() &&
+        isSameClass(classId) &&
+        request.auth.uid == request.resource.data.authorUid &&
+        request.resource.data.classId == classId;
+    }
+
+    function isCaseLibraryRequestAuthorUpdateAllowed(classId) {
+      return canInteractWithSharedCaseLibrary() &&
+        isSameClass(classId) &&
+        request.auth.uid == resource.data.authorUid &&
+        request.resource.data.authorUid == resource.data.authorUid &&
+        request.resource.data.classId == resource.data.classId &&
+        request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          "pageType",
+          "title",
+          "content",
+          "summary",
+          "authorName",
+          "classLabel",
+          "teacherNamePublic",
+          "updatedAt"
+        ]);
+    }
+
+    function isCaseLibraryRequestMetricPatch() {
+      return canInteractWithSharedCaseLibrary() &&
+        request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          "metrics",
+          "interestCount",
+          "commentCount",
+          "lastActivityAt"
+        ]) &&
+        request.resource.data.metrics.interestCount == request.resource.data.interestCount &&
+        request.resource.data.metrics.commentCount == request.resource.data.commentCount;
+    }
+
+    function isCaseLibraryRequestCommentCreateAllowed(classId, requestId) {
+      return canInteractWithSharedCaseLibrary() &&
+        request.auth.uid == request.resource.data.authorUid &&
+        request.resource.data.classId == classId &&
+        request.resource.data.requestId == requestId;
+    }
+
+    function isCaseLibraryRequestCommentAuthorUpdateAllowed() {
+      return canInteractWithSharedCaseLibrary() &&
+        request.auth.uid == resource.data.authorUid &&
+        request.resource.data.authorUid == resource.data.authorUid &&
+        request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          "content",
+          "updatedAt"
+        ]);
+    }
+
+
+    // =================================================
+    // [2] ?熬곣뫖????롫맩???
+    // =================================================
+    match /system/planConfig {
+      allow read: if isLoggedIn();
+      allow write: if isAdmin();
+    }
+
+    match /stockMarketSummary/{docId} {
+      allow read: if isLoggedIn();
+      allow write: if isAdmin();
+    }
+    match /sportsMatchSummary/{docId} {
+      allow read: if isLoggedIn();
+      allow write: if isAdmin();
+    }
+    match /stockCategories/{docId} {
+      allow read: if isLoggedIn();
+      allow write: if isAdmin();
+    }
+    match /stockChartSummary/{docId} {
+      allow read: if isLoggedIn();
+      allow write: if isAdmin();
+    }
+    match /stockEarningsCache/{docId} {
+      allow read: if isLoggedIn();
+      allow write: if false;
+    }
+    match /stockEtfProfileCache/{docId} {
+      allow read: if isLoggedIn();
+      allow write: if false;
+    }
+
+    match /globalUpdateMessages/{docId} {
+      allow read: if isLoggedIn();
+
+      allow write: if isAdmin();
+    }
+
+    match /sharedSummaries/{docId} {
+      allow read: if isAdmin() || isTeacher() || isTeacherByUserProfile();
+      allow write: if false;
+    }
+
+    match /sharedCaseLibraryPostSummaries/{summaryId} {
+      allow read: if isAdmin() || isTeacher() || isTeacherByUserProfile();
+      allow write: if false;
+    }
+
+    // =================================================
+    // [3] collectionGroup ??袁ⓥ뵛 ?잙?裕??
+    // =================================================
+    match /{path=**}/savings/{docId} {
+      allow read: if resource.data.classId is string && canManageBankContent(resource.data.classId);
+    }
+    match /{path=**}/loans/{docId} {
+      allow read: if resource.data.classId is string && canManageBankContent(resource.data.classId);
+    }
+    match /{path=**}/paySlips/{docId} {
+      allow read: if resource.data.classId is string && canManageTaxPayrollContent(resource.data.classId);
+    }
+    match /{path=**}/taxBills/{docId} {
+      allow read: if canReadTaxBillGroupDoc();
+    }
+    match /{path=**}/activityLogs/{docId} {
+      allow read: if canReadActivityLogGroupDoc();
+    }
+
+    match /{path=**}/applications/{applicationId} {
+      allow read: if canReadJobBoardApplicationGroupDoc();
+    }
+
+    match /{path=**}/requests/{requestId} {
+      allow read: if canReadJobSeekerRequestGroupDoc();
+    }
+
+    match /{path=**}/caseLibraryPosts/{postId} {
+      allow read: if canReadSharedCaseLibraryGroupDoc();
+    }
+
+    match /{path=**}/caseLibraryRequests/{requestId} {
+      allow read: if canReadSharedCaseLibraryGroupDoc();
+    }
+    match /{path=**}/comments/{commentId} {
+      allow read: if canInteractWithSharedCaseLibrary() &&
+        resource.data.classId is string &&
+        resource.data.authorUid is string &&
+        resource.data.authorUid == request.auth.uid &&
+        isSameClass(resource.data.classId);
+    }
+
+
+    match /{path=**}/voters/{docId} {
+      allow read: if canReadOwnVoterDoc();
+    }
+
+    // =================================================
+    // [4] ???껊땵 ??쒖굣???잙?裕??
+    // =================================================
+    match /classes/{classId} {
+      allow read: if isSameClass(classId);
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (
+        isSameClass(classId) &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(["studentRosterVersion"]) &&
+        (
+          (
+            isClassDocBasicSettingsPatch() &&
+            canManageClassAdminContent(classId)
+          ) ||
+          (
+            isClassDocTaxSettingsPatch() &&
+            canManageClassTaxSettings(classId)
+          ) ||
+          (
+            isClassDocMissionLegacyPatch() &&
+            canManageMissionContent(classId)
+          )
+        )
+      );
+
+      match /caseLibraryPosts/{postId} {
+        allow read: if canReadSharedCaseLibrary(classId);
+        allow create: if isCaseLibraryPostCreateAllowed(classId);
+        allow update: if isCaseLibraryPostAuthorUpdateAllowed(classId) ||
+          isCaseLibraryPostInteractionMetricPatch();
+        allow delete: if canInteractWithSharedCaseLibrary() &&
+          isSameClass(classId) &&
+          request.auth.uid == resource.data.authorUid;
+
+        match /comments/{commentId} {
+          allow read: if canReadSharedCaseLibrary(classId);
+          allow create: if isCaseLibraryCommentCreateAllowed(classId, postId);
+          allow update: if isCaseLibraryCommentAuthorUpdateAllowed() ||
+            isCaseLibraryCommentRecommendPatch();
+          allow delete: if canInteractWithSharedCaseLibrary() &&
+            isSameClass(classId);
+
+          match /recommenders/{uid} {
+            allow read, create: if canInteractWithSharedCaseLibrary() &&
+              request.auth.uid == uid;
+            allow delete: if canInteractWithSharedCaseLibrary() &&
+              isSameClass(classId);
+            allow update: if false;
+          }
+        }
+      }
+
+      match /caseLibrarySavedPosts/{uid}/posts/{savedPostId} {
+        allow read, create, delete: if canInteractWithSharedCaseLibrary() &&
+          request.auth.uid == uid;
+        allow update: if false;
+      }
+
+      match /caseLibraryRecommendedPosts/{uid}/posts/{recommendedPostId} {
+        allow read, create, delete: if canInteractWithSharedCaseLibrary() &&
+          request.auth.uid == uid;
+        allow update: if false;
+      }
+
+      match /caseLibraryReadStates/{uid} {
+        allow read, create, update, delete: if canInteractWithSharedCaseLibrary() &&
+          request.auth.uid == uid;
+      }
+
+      match /caseLibraryRequests/{requestId} {
+        allow read: if canReadSharedCaseLibrary(classId);
+        allow create: if isCaseLibraryRequestCreateAllowed(classId);
+        allow update: if isCaseLibraryRequestAuthorUpdateAllowed(classId) ||
+          isCaseLibraryRequestMetricPatch();
+        allow delete: if canInteractWithSharedCaseLibrary() &&
+          isSameClass(classId) &&
+          request.auth.uid == resource.data.authorUid;
+
+        match /requestComments/{commentId} {
+          allow read: if canReadSharedCaseLibrary(classId);
+          allow create: if isCaseLibraryRequestCommentCreateAllowed(classId, requestId);
+          allow update: if isCaseLibraryRequestCommentAuthorUpdateAllowed();
+          allow delete: if canInteractWithSharedCaseLibrary() &&
+            isSameClass(classId);
+        }
+      }
+
+      match /caseLibraryRequestInterests/{uid}/requests/{interestId} {
+        allow read, create, delete: if canInteractWithSharedCaseLibrary() &&
+          request.auth.uid == uid;
+        allow update: if false;
+      }
+
+      match /tierCriteria/{docId} {
+        allow read: if isSameClass(classId);
+        allow create, update, delete: if canManageCreditContent(classId);
+      }
+
+      match /bank/{docId} {
+        allow read: if isSameClass(classId);
+        allow create, update, delete: if canManageBankContent(classId);
+      }
+
+      match /bankConfig/{docId} {
+        allow read: if isSameClass(classId);
+        allow create, update, delete: if canManageBankContent(classId);
+      }
+
+      // Subscription products and lottery rounds are visible to members of the
+      // class. Mutations go through callable functions using the Admin SDK.
+      match /subscriptionProducts/{productId} {
+        allow read: if isSameClass(classId);
+        allow create, update, delete: if false;
+      }
+
+      match /lotteryRounds/{roundId} {
+        allow read: if isSameClass(classId);
+        allow create, update, delete: if false;
+      }
+
+      // Students can only read their own subscription state and result.
+      // Bank managers need class-wide reads for the management screens.
+      match /subscriptions/{studentUid} {
+        allow read: if isSameClass(classId) && (
+          request.auth.uid == studentUid ||
+          canManageBankContent(classId)
+        );
+        allow create, update, delete: if false;
+      }
+
+      match /subscriptionResults/{studentUid} {
+        allow read: if isSameClass(classId) && (
+          request.auth.uid == studentUid ||
+          canManageBankContent(classId)
+        );
+        allow create, update, delete: if false;
+      }
+
+      match /assemblyBills/{billId} {
+        allow read: if canReadAssemblyContent(classId);
+        allow create: if canProposeAssemblyContent(classId) &&
+          request.resource.data.proposerUid == request.auth.uid &&
+          request.resource.data.status == "voting" &&
+          (
+            !request.resource.data.keys().hasAny(["allowVoteChanges"]) ||
+            request.resource.data.allowVoteChanges is bool
+          ) &&
+          (
+            !request.resource.data.keys().hasAny(["hideResultsDuringVoting"]) ||
+            request.resource.data.hideResultsDuringVoting is bool
+          ) &&
+          request.resource.data.registerPoliceRuleOnPass is bool &&
+          (
+            !request.resource.data.keys().hasAny(["showVotersDuringVoting"]) ||
+            (
+              request.resource.data.showVotersDuringVoting is bool &&
+              request.resource.data.showVotersDuringVoting == false
+            )
+          ) &&
+          (
+            !request.resource.data.keys().hasAny(["showVotersAfterClose"]) ||
+            (
+              request.resource.data.showVotersAfterClose is bool &&
+              request.resource.data.showVotersAfterClose == false
+            )
+          ) &&
+          request.resource.data.votes is map &&
+          request.resource.data.votes.agree == 0 &&
+          request.resource.data.votes.disagree == 0 &&
+          request.resource.data.keys().hasOnly([
+            "title",
+            "content",
+            "proposerUid",
+            "proposerName",
+            "isAnonymous",
+            "allowVoteChanges",
+            "hideResultsDuringVoting",
+            "createdAt",
+            "status",
+            "registerPoliceRuleOnPass",
+            "showVotersDuringVoting",
+            "showVotersAfterClose",
+            "policeRuleData",
+            "votes",
+            "agree",
+            "disagree",
+            "voteCount"
+          ]) &&
+          (
+            !request.resource.data.keys().hasAny(["isAnonymous"]) ||
+            request.resource.data.isAnonymous is bool
+          ) &&
+          (
+            request.resource.data.registerPoliceRuleOnPass
+              ? request.resource.data.policeRuleData is map
+              : !request.resource.data.keys().hasAny(["policeRuleData"])
+          );
+        allow update, delete: if canManageAssemblyContent(classId);
+
+        match /voters/{uid} {
+          allow read: if request.auth.uid == uid ||
+            canReadAssemblyVoters(classId, billId);
+          allow create, update, delete: if false;
+        }
+      }
+
+      match /assemblySettings/{docId} {
+        allow read: if canReadAssemblyContent(classId);
+        allow create, update, delete: if canManageAssemblyContent(classId);
+      }
+
+      match /displaySettings/{docId} {
+        allow read: if isSameClass(classId);
+        allow create, update, delete: if canManageClassAdminContent(classId);
+
+        match /{subPath=**} {
+          allow read: if isSameClass(classId);
+          allow write: if canManageClassAdminContent(classId);
+        }
+      }
+
+      match /settings/{docId} {
+        allow read: if docId == "credentials" && isSameClass(classId);
+        allow create, update, delete: if
+          docId == "credentials" &&
+          canManageClassAdminContent(classId);
+      }
+
+      match /titles/{titleId} {
+        allow read: if isSameClass(classId);
+        allow create, update: if canDesignCredentialContent(classId);
+        allow delete: if canManageClassAdminContent(classId);
+      }
+
+      match /certificates/{certificateId} {
+        allow read: if isSameClass(classId);
+        allow create, update: if canDesignCredentialContent(classId);
+        allow delete: if canManageClassAdminContent(classId);
+      }
+
+      match /stockCategories/{categoryId} {
+        allow read: if isSameClass(classId);
+        allow create, update, delete: if canManageClassAdminContent(classId);
+      }
+
+      match /titleRequests/{requestId} {
+        allow read: if isSameClass(classId) && (
+          canManageCredentialContent(classId) ||
+          resource.data.studentUid == request.auth.uid
+        );
+        allow create: if
+          (
+            canManageOtherStudentCredentialContent(
+              classId,
+              request.resource.data.studentUid
+            ) &&
+            isValidTitleRequestData(
+              classId,
+              request.resource.data.studentUid,
+              request.resource.data.titleId,
+              requestId,
+              request.resource.data
+            )
+          ) ||
+          isStudentPendingTitleRequest(
+            classId,
+            request.resource.data.studentUid,
+            request.resource.data.titleId,
+            requestId
+          );
+        allow update: if
+          (
+            canManageOtherStudentCredentialContent(
+              classId,
+              resource.data.get("studentUid", "")
+            ) &&
+            isValidManagedTitleRequestReview(
+              resource.data.get("studentUid", ""),
+              resource.data.get("titleId", ""),
+              requestId
+            )
+          ) ||
+          (
+            resource.data.status != "approved" &&
+            preservesTitleRequestIdentity(
+              request.auth.uid,
+              resource.data.titleId,
+              requestId
+            ) &&
+            isStudentPendingTitleRequest(
+              classId,
+              request.auth.uid,
+              resource.data.titleId,
+              requestId
+            )
+          );
+        allow delete: if false;
+      }
+
+      // ?ル留⑵굢???嶺뚯쉳??캆????????뉖Ц ??쒖굣??jobs/job/lastUpdated) ?熬곣뫗?????깅뮔
+      // - teacher/admin/labor_admin(a_lbr)
+      // - ?띠룇?? ???????? token classId + users ?熬곣뫁夷??+ students ???爰???쒖굣??fallback 嶺뚮ㅄ維筌????깅뮔
+      // Server-owned, field-limited projection. Preserve the existing roster read boundary.
+      match /studentRoster/{studentUid} {
+        allow read: if canReadStudentProfile(classId, studentUid);
+        allow write: if false;
+      }
+
+      match /students/{studentUid} {
+        allow read: if canReadStudentProfile(classId, studentUid);
+        allow update: if isLoggedIn() && (
+          isAdmin() ||
+          (
+            (isTeacher() || isTeacherByUserProfile()) &&
+            request.auth.uid == studentUid &&
+            isValidTitleCollectionPreferenceUpdate()
+          ) ||
+          (
+            isCurrentNonTeacherClassMember(classId) &&
+            request.auth.uid == studentUid &&
+            isValidTitleCollectionPreferenceUpdate()
+          ) ||
+          (
+            (isTeacher() || hasTokenPermission("a_lbr")) &&
+            (
+              (request.auth.token.classId != null &&
+                request.auth.token.classId == classId) ||
+              exists(/databases/$(database)/documents/classes/$(classId)/students/$(request.auth.uid)) ||
+              isSameClassByUserProfile(classId)
+            ) &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              "jobs",
+              "job",
+              "lastUpdated"
+            ])
+          ) ||
+          (
+            canManageClassAdminContent(classId) &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              "gender",
+              "statsExclusion",
+              "loanLimitRatio"
+            ])
+          )
+        );
+
+        match /ownedTitles/{ownedId} {
+          allow read: if isSameClass(classId) && (
+            request.auth.uid == studentUid ||
+            canManageCredentialContent(classId) ||
+            (
+              isStrictClassMember(classId) &&
+              get(
+                /databases/$(database)/documents/classes/$(classId)/students/$(studentUid)
+              ).data.get("titleCollectionVisibility", "public") == "public"
+            )
+          );
+          allow create: if
+            canManageOtherStudentCredentialContent(classId, studentUid) &&
+            isValidOwnedTitleIdentity(request.resource.data, ownedId);
+          allow update: if
+            (
+              canManageOtherStudentCredentialContent(classId, studentUid) &&
+              resource.data.titleId == ownedId &&
+              request.resource.data.titleId == resource.data.titleId &&
+              isValidOwnedTitleIdentity(request.resource.data, ownedId)
+            ) ||
+            (
+              isSameClass(classId) &&
+              request.auth.uid == studentUid &&
+              resource.data.titleId == ownedId &&
+              request.resource.data.titleId == resource.data.titleId &&
+              resource.data.isRevoked == false &&
+              request.resource.data.isRevoked == false &&
+              request.resource.data.diff(resource.data).changedKeys().hasOnly([
+                "equipped",
+                "equippedOrder",
+                "updatedAt"
+              ]) &&
+              isValidOwnedTitleStudentPreference(request.resource.data)
+            );
+          allow delete: if false;
+        }
+
+        match /titlePreferences/{docId} {
+          allow read: if isSameClass(classId) && (
+            request.auth.uid == studentUid ||
+            canManageCredentialContent(classId)
+          );
+          allow create: if
+            (
+              canManageOtherStudentCredentialContent(classId, studentUid) ||
+              (
+                isSameClass(classId) &&
+                request.auth.uid == studentUid
+              )
+            ) &&
+            isValidTitlePreferenceData(
+              classId,
+              docId,
+              request.resource.data
+            );
+          allow update: if
+            (
+              (
+                canManageOtherStudentCredentialContent(classId, studentUid) ||
+                (
+                  isSameClass(classId) &&
+                  request.auth.uid == studentUid
+                )
+              ) &&
+              request.resource.data.diff(resource.data).changedKeys().hasOnly([
+                "nextTargetTitleId",
+                "updatedAt"
+              ]) &&
+              isValidTitlePreferenceData(
+                classId,
+                docId,
+                request.resource.data
+              )
+            );
+          allow delete: if false;
+        }
+
+        match /ownedCertificates/{ownedId} {
+          allow read: if isSameClass(classId) && (
+            request.auth.uid == studentUid ||
+            canManageCredentialContent(classId)
+          );
+          allow create: if
+            canManageOtherStudentCredentialContent(classId, studentUid) &&
+            isValidOwnedCertificateIdentity(request.resource.data, ownedId);
+          allow update: if
+            canManageOtherStudentCredentialContent(classId, studentUid) &&
+            resource.data.certificateId == ownedId &&
+            request.resource.data.certificateId ==
+              resource.data.certificateId &&
+            isValidOwnedCertificateIdentity(
+              request.resource.data,
+              ownedId
+            );
+          allow delete: if false;
+        }
+
+        match /titleRequests/{titleId} {
+          allow read: if isSameClass(classId) && (
+            request.auth.uid == studentUid ||
+            canManageCredentialContent(classId)
+          );
+          allow create: if
+            (
+              canManageOtherStudentCredentialContent(classId, studentUid) &&
+              isValidTitleRequestData(
+                classId,
+                studentUid,
+                titleId,
+                studentUid + "_" + titleId,
+                request.resource.data
+              )
+            ) ||
+            isStudentPendingTitleRequest(
+              classId,
+              studentUid,
+              titleId,
+              studentUid + "_" + titleId
+            );
+          allow update: if
+            (
+              canManageOtherStudentCredentialContent(classId, studentUid) &&
+              isValidManagedTitleRequestReview(
+                studentUid,
+                titleId,
+                studentUid + "_" + titleId
+              )
+            ) ||
+            (
+              resource.data.status != "approved" &&
+              preservesTitleRequestIdentity(
+                studentUid,
+                titleId,
+                studentUid + "_" + titleId
+              ) &&
+              isStudentPendingTitleRequest(
+                classId,
+                studentUid,
+                titleId,
+                studentUid + "_" + titleId
+              )
+            );
+          allow delete: if false;
+        }
+      }
+
+      match /students/{studentUid}/missionState/{missionId} {
+        allow read: if isSameClass(classId) && (
+          request.auth.uid == studentUid ||
+          canManageMissionContent(classId)
+        );
+        allow create, update, delete: if false;
+
+        match /days/{dayKey} {
+          allow read: if isSameClass(classId) && (
+            request.auth.uid == studentUid ||
+            canManageMissionContent(classId)
+          );
+          allow create, update, delete: if false;
+        }
+
+        match /attempts/{attemptId} {
+          allow read: if isSameClass(classId) && (
+            request.auth.uid == studentUid ||
+            canManageMissionContent(classId)
+          );
+          allow create, update, delete: if false;
+        }
+      }
+
+      match /students/{studentUid}/dashboardSummary/{docId} {
+        allow read: if isSameClass(classId) && (
+          request.auth.uid == studentUid ||
+          canManageMissionContent(classId)
+        );
+        allow create, update, delete: if false;
+      }
+
+      // ??⑤챷???곸궠??誘ㅒ?μ쪚????⑤갭?/???깆젧?? ??㉱?洹먮봿??雅?굝??뇡?teacher/admin/a_str)??怨쀬Ŧ ??戮?꽑
+      match /storeCategories/{categoryId} {
+        allow read: if isSameClass(classId);
+        allow create: if canManageStoreContent(classId) && (
+          !isVipStoreCategoryData(request.resource.data) ||
+          canManageVipStoreContent(classId)
+        );
+        allow update: if canManageStoreContent(classId) && (
+          (
+            !isVipStoreCategoryData(resource.data) &&
+            !isVipStoreCategoryData(request.resource.data)
+          ) ||
+          canManageVipStoreContent(classId)
+        );
+        allow delete: if canManageStoreContent(classId) && (
+          !isVipStoreCategoryData(resource.data) ||
+          canManageVipStoreContent(classId)
+        );
+      }
+
+      match /storeItems/{itemId} {
+        allow read: if isSameClass(classId) && (
+          !isVipStoreItemData(classId, resource.data) ||
+          canManageVipStoreContent(classId) ||
+          canReadVipStoreItem(classId, resource.data)
+        );
+        allow create: if canManageStoreContent(classId) && (
+          !isVipStoreItemData(classId, request.resource.data) ||
+          canManageVipStoreContent(classId)
+        );
+        allow update: if canManageStoreContent(classId) && (
+          (
+            !isVipStoreItemData(classId, resource.data) &&
+            !isVipStoreItemData(classId, request.resource.data)
+          ) ||
+          canManageVipStoreContent(classId)
+        );
+        allow delete: if canManageStoreContent(classId) && (
+          !isVipStoreItemData(classId, resource.data) ||
+          canManageVipStoreContent(classId)
+        );
+      }
+
+      match /storeSettings/{docId} {
+        allow read: if isSameClass(classId) && (
+          docId != "catalog" ||
+          canManageVipStoreContent(classId) ||
+          resource.data.get("schemaVersion", 0) >= 4
+        );
+        allow create, update, delete: if docId != "catalog" &&
+          canManageStoreContent(classId);
+
+        match /{subPath=**} {
+          allow read: if docId != "catalog" && isSameClass(classId);
+          allow write: if docId != "catalog" && canManageStoreContent(classId);
+        }
+      }
+
+      // ??⑤챷????뚮맍瑗??????storeRedemptions)?? ??類ㅼ뮅 ??貫??Admin SDK)嶺??リ옇?▽빳???瑜곸젧
+      match /storeLimitSummaries/{itemId} {
+        allow read: if canManageStoreContent(classId);
+        allow create, update, delete: if false;
+      }
+
+      match /storeAnalyticsDaily/{dateKey} {
+        allow read: if isSameClass(classId) && isTeacher();
+        allow create, update, delete: if false;
+      }
+
+      match /policeAnalyticsDaily/{dateKey} {
+        allow read: if isSameClass(classId) && (isTeacher() || isAdmin());
+        allow create, update, delete: if false;
+      }
+
+      match /taxAnalyticsDaily/{dateKey} {
+        allow read: if isSameClass(classId) && (isTeacher() || isAdmin());
+        allow create, update, delete: if false;
+      }
+
+      match /missionAnalyticsDaily/{dateKey} {
+        allow read: if isSameClass(classId) && (isTeacher() || isAdmin());
+        allow create, update, delete: if false;
+      }
+
+      match /creditAnalyticsDaily/{dateKey} {
+        allow read: if isSameClass(classId) && (isTeacher() || isAdmin());
+        allow create, update, delete: if false;
+      }
+
+      match /realEstateAnalyticsDaily/{dateKey} {
+        allow read: if isSameClass(classId) && (isTeacher() || isAdmin());
+        allow create, update, delete: if false;
+      }
+
+      match /storeRedemptions/{docId} {
+        allow read: if isSameClass(classId) && (
+          canManageStoreContent(classId) ||
+          resource.data.studentUid == request.auth.uid
+        );
+        allow create, update, delete: if false;
+      }
+
+      // 嶺뚮씭????????怨룸츩 ?곸궠??誘ㅒ?μ쪚?????깆젧?? ??㉱?洹먮봿??雅?굝??뇡?teacher/admin/a_mkt)??怨쀬Ŧ ??戮?꽑
+      // Donation data is written by callable functions (Admin SDK).
+      match /donations/{donationId} {
+        allow read: if isSameClass(classId);
+        allow create, update, delete: if false;
+      }
+
+      match /donationStats/{docId} {
+        allow read: if isSameClass(classId);
+        allow create, update, delete: if false;
+      }
+
+      match /donationUsages/{docId} {
+        allow read: if isSameClass(classId);
+        allow create, update, delete: if false;
+      }
+
+      // Only donation goal can be edited directly by class admins/teachers.
+      match /dashboardSummary/agentDailySummary {
+        allow read: if isSameClass(classId) && isTeacher();
+        allow create, update, delete: if false;
+      }
+
+      match /analyticsDaily/{dateKey} {
+        allow read: if isSameClass(classId) && isTeacher();
+        allow create, update, delete: if false;
+      }
+
+      match /aiAgentActionDrafts/{draftId} {
+        allow read: if isSameClass(classId) && isTeacher();
+        allow create, update, delete: if false;
+      }
+
+      match /aiAgentExecutionLogs/{executionId} {
+        allow read: if isSameClass(classId) && isTeacher();
+        allow create, update, delete: if false;
+      }
+
+      match /dashboardSummary/donationSummary {
+        allow read: if isSameClass(classId);
+          allow create, update: if canManageClassAdminContent(classId) &&
+            isDonationSummaryTeacherPatch();
+        allow delete: if false;
+      }
+
+      match /dashboardSummary/economyBaseline {
+        allow read: if isSameClass(classId);
+        allow create, update, delete: if false;
+      }
+
+      match /marketplace_categories/{categoryId} {
+        allow read: if isSameClass(classId);
+        allow create, update, delete: if canManageMarketplaceContent(classId);
+      }
+
+      match /marketplace_settings/{docId} {
+        allow read: if isSameClass(classId);
+        allow create, update, delete: if canManageMarketplaceContent(classId);
+
+        match /{subPath=**} {
+          allow read: if isSameClass(classId);
+          allow write: if canManageMarketplaceContent(classId);
+        }
+      }
+
+      // 繞벿살탪??爾욄⑤벡????⑤갭?: ?곌랜梨???繹먮굞夷???瑜곸젧/????+ ??㉱?洹먮봿???獄?????㉱??
+      match /marketplace/{itemId} {
+        allow read: if isSameClass(classId);
+
+        allow create: if isSameClass(classId) && (
+          canManageMarketplaceContent(classId) ||
+          isValidStudentMarketplaceCreate(classId)
+        );
+
+        allow update: if isSameClass(classId) && (
+          canManageMarketplaceContent(classId) ||
+          (
+            request.auth.uid == resource.data.sellerId &&
+            resource.data.status != "sold" &&
+            resource.data.get("sold", false) != true &&
+            request.resource.data.sellerId == resource.data.sellerId &&
+            request.resource.data.approved == resource.data.approved &&
+            request.resource.data.status == resource.data.status &&
+            request.resource.data.get("sold", false) == resource.data.get("sold", false) &&
+            request.resource.data.get("soldAt", null) == resource.data.get("soldAt", null) &&
+            request.resource.data.get("buyerId", "") == resource.data.get("buyerId", "") &&
+            request.resource.data.get("buyerName", "") == resource.data.get("buyerName", "") &&
+            request.resource.data.get("approvedBy", "") == resource.data.get("approvedBy", "") &&
+            request.resource.data.get("approvedAt", null) == resource.data.get("approvedAt", null) &&
+            request.resource.data.get("rejectedBy", "") == resource.data.get("rejectedBy", "") &&
+            request.resource.data.get("rejectedAt", null) == resource.data.get("rejectedAt", null) &&
+            request.resource.data.get("rejectedReason", "") == resource.data.get("rejectedReason", "") &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              "title",
+              "description",
+              "category",
+              "itemIcon",
+              "price",
+              "stock",
+              "updatedAt",
+              "updatedBy",
+              "updatedByName"
+            ]) &&
+            hasValidMarketplaceListingFields(request.resource.data)
+          )
+        );
+
+        allow delete: if isSameClass(classId) && (
+          canManageMarketplaceContent(classId) ||
+          (
+            request.auth.uid == resource.data.sellerId &&
+            resource.data.status != "sold" &&
+            resource.data.get("sold", false) != true
+          )
+        );
+      }
+
+      // 濾곌쑨????????? ??類ㅼ뮅 ??貫??Admin SDK)嶺??リ옇?▽빳???瑜곸젧
+      match /marketplace_transactions/{docId} {
+        allow read: if isSameClass(classId) && (
+          canManageMarketplaceContent(classId) ||
+          resource.data.sellerId == request.auth.uid ||
+          resource.data.buyerId == request.auth.uid
+        );
+        allow create, update, delete: if false;
+      }
+
+      // ?롪퍔?????⑤갭??? ??類ㅼ뮅 ??貫??Admin SDK)嶺???諛댁뎽/??瑜곸젧, settings ??쒖굣?묐슪彛???㉱?洹먮봿??嶺뚯쉳?????瑜곸젧 ???깅뮔
+      match /auction/{itemId} {
+        allow read: if isSameClass(classId);
+        allow create, update, delete: if itemId == "settings" && canManageMarketplaceContent(classId);
+
+        match /holds/{holderUid} {
+          allow read: if isSameClass(classId) && (
+            holderUid == request.auth.uid ||
+            canManageMarketplaceContent(classId)
+          );
+          allow create, update, delete: if false;
+        }
+
+        match /bids/{bidId} {
+          allow read: if isSameClass(classId) && canManageMarketplaceContent(classId);
+          allow create, update, delete: if false;
+        }
+      }
+
+      // ?롪퍔??????얠뺙 ?β돦裕?????類ㅼ뮅 ??貫??Admin SDK)嶺??リ옇?▽빳???瑜곸젧
+      match /auction_bids/{docId} {
+        allow read: if isSameClass(classId) && canManageMarketplaceContent(classId);
+        allow create, update, delete: if false;
+      }
+
+      match /taxRules/{docId} {
+        allow read: if isSameClass(classId);
+        allow create, update, delete: if canManageTaxContent(classId);
+      }
+
+      match /jobDefinitions/{docId} {
+        allow read: if isSameClass(classId);
+        allow create, update, delete: if canManageTaxPayrollContent(classId);
+      }
+
+      match /jobPosts/{postId} {
+        allow read: if isSameClass(classId);
+        allow create, update, delete: if false;
+
+        match /applications/{applicationId} {
+          allow read: if isSameClass(classId) && (
+            isTeacher() ||
+            isAdmin() ||
+            request.auth.uid == resource.data.authorUid ||
+            request.auth.uid == resource.data.applicantUid ||
+            (
+              resource.data.memberUids is list &&
+              request.auth.uid in resource.data.memberUids
+            )
+          );
+          allow create, update, delete: if false;
+        }
+      }
+
+      match /jobBoardProfiles/{profileId} {
+        allow read: if isSameClass(classId);
+        allow create, update, delete: if false;
+      }
+
+      match /jobBoardDashboardSummaries/{summaryId} {
+        allow read: if isSameClass(classId) && (
+          isTeacher() ||
+          isAdmin() ||
+          request.auth.uid == summaryId
+        );
+        allow create, update, delete: if false;
+      }
+
+      match /jobBoardRatings/{ratingId} {
+        allow read: if isSameClass(classId) && (
+          isTeacher() ||
+          isAdmin() ||
+          resource.data.raterUid == request.auth.uid ||
+          resource.data.targetUid == request.auth.uid
+        );
+        allow create, update, delete: if false;
+      }
+
+      match /jobPayments/{paymentId} {
+        allow read: if isSameClass(classId) && (
+          isTeacher() ||
+          isAdmin() ||
+          (
+            resource.data.recipientUids is list &&
+            request.auth.uid in resource.data.recipientUids
+          )
+        );
+        allow create, update, delete: if false;
+      }
+
+      match /jobSeekerServices/{serviceId} {
+        function jobSeekerRequestMetricIncrementAllowed() {
+          return isSameClass(classId) &&
+            resource.data.status == "active" &&
+            request.auth.uid != resource.data.ownerUid &&
+            request.resource.data.classId == resource.data.classId &&
+            request.resource.data.ownerUid == resource.data.ownerUid &&
+            request.resource.data.diff(resource.data).changedKeys().hasOnly([
+              "requestCount",
+              "updatedAt"
+            ]) &&
+            request.resource.data.requestCount == resource.data.requestCount + 1 &&
+            request.resource.data.updatedAt == request.time;
+        }
+
+        function jobSeekerRequestCreateAllowed() {
+          let servicePath = /databases/$(database)/documents/classes/$(classId)/jobSeekerServices/$(serviceId);
+          let serviceDoc = get(servicePath).data;
+          return isSameClass(classId) &&
+            exists(servicePath) &&
+            serviceDoc.status == "active" &&
+            request.auth.uid != serviceDoc.ownerUid &&
+            request.resource.data.keys().hasOnly([
+              "classId",
+              "requestId",
+              "serviceId",
+              "serviceTitle",
+              "requesterUid",
+              "requesterName",
+              "requesterRole",
+              "requesterStudentNumber",
+              "providerUid",
+              "providerName",
+              "requestMessage",
+              "proposedRewardAmount",
+              "dueAt",
+              "note",
+              "status",
+              "rejectionReason",
+              "createdAt",
+              "updatedAt",
+              "acceptedAt",
+              "rejectedAt",
+              "completedAt",
+              "paidAt"
+            ]) &&
+            request.resource.data.classId == classId &&
+            request.resource.data.requestId == requestId &&
+            request.resource.data.serviceId == serviceId &&
+            request.resource.data.requesterUid == request.auth.uid &&
+            request.resource.data.providerUid == serviceDoc.ownerUid &&
+            request.resource.data.providerName is string &&
+            request.resource.data.serviceTitle is string &&
+            request.resource.data.requesterName is string &&
+            request.resource.data.requesterRole is string &&
+            request.resource.data.requesterStudentNumber is string &&
+            request.resource.data.requestMessage is string &&
+            request.resource.data.requestMessage.size() > 0 &&
+            request.resource.data.requestMessage.size() <= 1500 &&
+            request.resource.data.proposedRewardAmount is number &&
+            request.resource.data.proposedRewardAmount >= 0 &&
+            (
+              request.resource.data.dueAt == null ||
+              request.resource.data.dueAt is timestamp
+            ) &&
+            (
+              request.resource.data.note == null ||
+              request.resource.data.note is string
+            ) &&
+            request.resource.data.status == "requested" &&
+            request.resource.data.rejectionReason == null &&
+            request.resource.data.createdAt == request.time &&
+            request.resource.data.updatedAt == request.time &&
+            request.resource.data.acceptedAt == null &&
+            request.resource.data.rejectedAt == null &&
+            request.resource.data.completedAt == null &&
+            request.resource.data.paidAt == null;
+        }
+
+        allow read: if isSameClass(classId);
+        allow create: if isSameClass(classId) &&
+          request.resource.data.classId == classId &&
+          request.resource.data.ownerUid == request.auth.uid &&
+          request.resource.data.status == "pending_approval";
+        allow update: if (
+          isSameClass(classId) && (
+            isTeacher() ||
+            isTeacherByUserProfile() ||
+            isAdmin()
+          ) &&
+            request.resource.data.classId == resource.data.classId &&
+            request.resource.data.ownerUid == resource.data.ownerUid
+        ) || jobSeekerRequestMetricIncrementAllowed();
+        allow delete: if false;
+
+        match /requests/{requestId} {
+          allow read: if isSameClass(classId) && (
+            isTeacher() ||
+            isTeacherByUserProfile() ||
+            isAdmin() ||
+            request.auth.uid == resource.data.providerUid ||
+            request.auth.uid == resource.data.requesterUid
+          );
+          allow create: if jobSeekerRequestCreateAllowed();
+          allow update, delete: if false;
+        }
+      }
+
+      match /jobSeekerCategories/{categoryId} {
+        allow read: if isSameClass(classId);
+        allow create, update, delete: if isSameClass(classId) && (
+          isTeacher() ||
+          isTeacherByUserProfile() ||
+          isAdmin()
+        );
+      }
+
+      match /jobSeekerPayments/{paymentId} {
+        allow read: if isSameClass(classId) && (
+          isTeacher() ||
+          isTeacherByUserProfile() ||
+          isAdmin() ||
+          (
+            resource.data.recipientUids is list &&
+            request.auth.uid in resource.data.recipientUids
+          )
+        );
+        allow create, update, delete: if false;
+      }
+
+      match /jobApplications/{docId} {
+        allow read: if isSameClass(classId) && (
+          canManageTaxPayrollContent(classId) ||
+          resource.data.studentUid == request.auth.uid
+        );
+
+        allow create: if isSameClass(classId) &&
+          isValidRoundJobApplication(classId, docId);
+
+        allow update: if isSameClass(classId) && (
+          canManageTaxPayrollContent(classId) ||
+          (
+            resource.data.studentUid == request.auth.uid &&
+            resource.data.status == "rejected" &&
+            isValidRoundJobApplication(classId, docId)
+          )
+        );
+
+        allow delete: if canManageTaxPayrollContent(classId);
+      }
+
+      // ?筌롫챸???????嶺뚯쉶理?????類ㅼ뮅 ??貫??Admin SDK)嶺??リ옇?▽빳?
+      match /taxIncomes/{docId} {
+        allow read: if isSameClass(classId);
+        allow create, update, delete: if false;
+      }
+
+      match /taxExpenses/{docId} {
+        allow read: if isSameClass(classId);
+        allow create, update, delete: if false;
+      }
+
+      match /taxSettlementDaily/{summaryId} {
+        allow read: if canManageTaxContent(classId);
+        allow create, update, delete: if false;
+
+        match /lines/{lineId} {
+          allow read: if canManageTaxContent(classId);
+          allow create, update, delete: if false;
+        }
+      }
+
+      match /taxPeriodSettlements/{settlementId} {
+        allow read: if canManageTaxContent(classId);
+        allow create, update, delete: if false;
+
+        match /lines/{lineId} {
+          allow read: if canManageTaxContent(classId);
+          allow create, update, delete: if false;
+        }
+      }
+
+      match /taxDaily/{dateKey} {
+        allow read: if isSameClass(classId);
+        allow create, update, delete: if false;
+      }
+
+      match /dashboardSummary/bankOverviewSavings {
+        allow read: if canManageBankContent(classId);
+        allow create, update, delete: if false;
+      }
+
+      match /dashboardSummary/bankOverviewLoans {
+        allow read: if canManageBankContent(classId);
+        allow create, update, delete: if false;
+      }
+
+      match /dashboardSummary/bankAdminPending {
+        allow read: if canManageBankContent(classId);
+        allow create, update, delete: if false;
+      }
+
+      match /dashboardSummary/payrollOverview {
+        allow read: if canManageTaxPayrollContent(classId);
+        allow create, update, delete: if false;
+      }
+
+      match /dashboardSummary/taxSummary {
+        allow read: if isSameClass(classId);
+        allow create, update, delete: if false;
+      }
+
+      match /dashboardSummary/missionsMain {
+        allow read: if isSameClass(classId);
+        allow create, update, delete: if false;
+
+        match /weeks/{weekKey} {
+          allow read: if isSameClass(classId);
+          allow create, update, delete: if false;
+        }
+
+        match /{subPath=**} {
+          allow read: if isSameClass(classId);
+          allow write: if false;
+        }
+      }
+
+      match /dashboardSummary/missionStats {
+        allow read: if isSameClass(classId);
+        allow create, update, delete: if false;
+
+        match /weeks/{weekKey} {
+          allow read: if isSameClass(classId);
+          allow create, update, delete: if false;
+        }
+
+        match /{subPath=**} {
+          allow read: if isSameClass(classId);
+          allow write: if false;
+        }
+      }
+
+      // 亦껋꼶梨????븐뻼?????깆젧?? 亦껋꼶梨????㉱?洹먮봿??雅?굝??뇡??怨쀬Ŧ嶺???戮?꽑
+      match /settings/missionViewSettings {
+        allow read: if isSameClass(classId);
+        allow create, update, delete: if canManageMissionContent(classId);
+      }
+
+      match /config/missionEconomy {
+        allow read: if isSameClass(classId);
+        allow create, update, delete: if canManageMissionContent(classId);
+      }
+
+      match /policeRules/{docId} {
+        allow read: if isSameClass(classId);
+        allow create, update, delete: if canManagePoliceRuleContent(classId);
+      }
+
+      match /policeSettings/{docId} {
+        allow read: if isSameClass(classId);
+        allow create, update, delete: if canManagePoliceRuleContent(classId);
+      }
+
+      match /policeDangerLabels/{docId} {
+        allow read: if isSameClass(classId);
+        allow create, update, delete: if canManagePoliceRuleContent(classId);
+      }
+
+      // ??ル맪????諛댁뎽: ?띠룇?? ???????+ ?곌랜梨??UID?β돦裕녶퐲????깅뮔
+      // ??ル맪????瑜곸젧/???? ?롪퍔?⒴첎?雅?굝??뇡????흮亦???㉱?洹먮봿??a_pol)嶺????깅뮔
+      match /policeReports/{reportId} {
+        allow read: if isSameClass(classId);
+        allow create: if (isSameClass(classId) || isSameClassByUserProfile(classId)) &&
+          request.resource.data.reporterUid == request.auth.uid &&
+          request.resource.data.classId == classId;
+        allow update, delete: if canManagePoliceContent(classId);
+      }
+
+      // ?롪퍔?⒴첎??????? ??類ㅼ뮅 ??貫???熬곣뫗?? reflectionStatus嶺????ル┰?????낆몥??袁⑤콦 ???깅뮔
+      match /policeFineHistory/{docId} {
+        allow read: if isSameClass(classId);
+        allow create, delete: if false;
+        allow update: if isPoliceFineHistoryReflectionPatchAllowed(classId);
+      }
+
+      // ?꾩룇瑗룩땻??? ???뉖Ц ?곌랜梨????戮깅???瑜곸젧 + ??흮亦??롪퍔?⒴첎?곴슈????롪틵???
+      match /reflections/{reflectionId} {
+        allow read: if isSameClass(classId);
+
+        allow create: if isPoliceReflectionFeatureEnabled(classId) &&
+          isSameClass(classId) &&
+          request.resource.data.studentUid == request.auth.uid &&
+          request.resource.data.classId == classId &&
+          request.resource.data.status == "submitted";
+
+        allow update: if isPoliceReflectionStudentPatchAllowed(classId) ||
+          isPoliceReflectionReviewerPatchAllowed(classId);
+
+        allow delete: if false;
+      }
+
+      match /config/stockMarket {
+        allow read: if isSameClass(classId);
+        allow create, update, delete: if canManageStockContent(classId);
+      }
+
+      match /stockInfo/{symbol} {
+        allow read: if isSameClass(classId);
+        allow create, update, delete: if canManageStockContent(classId);
+      }
+
+      match /stockDividendPolicies/{symbol} {
+        allow read: if isSameClass(classId);
+        allow create, update, delete: if canManageStockContent(classId);
+      }
+
+      match /fundApplications/{applicationId} {
+        allow read: if isSameClass(classId);
+        allow create, update, delete: if false;
+      }
+
+      match /funds/{fundId} {
+        allow read: if isSameClass(classId);
+        allow create, update, delete: if false;
+
+        match /{subPath=**} {
+          allow read: if isSameClass(classId);
+          allow create, update, delete: if false;
+        }
+      }
+
+      match /fundReports/{reportId} {
+        allow read: if isSameClass(classId);
+        allow create, update, delete: if false;
+      }
+
+      match /fundOrders/{orderId} {
+        allow read: if isSameClass(classId) && (
+          canManageStockContent(classId) ||
+          resource.data.studentUid == request.auth.uid ||
+          isManagedFundManager(classId, resource.data.fundId)
+        );
+        allow create, update, delete: if false;
+      }
+
+      match /fundPositions/{positionId} {
+        allow read: if isSameClass(classId) && (
+          canManageStockContent(classId) ||
+          resource.data.studentUid == request.auth.uid ||
+          isManagedFundManager(classId, resource.data.fundId)
+        );
+        allow create, update, delete: if false;
+      }
+
+      match /arcade/{docId} {
+        allow read: if isSameClass(classId);
+        allow create, update, delete: if canManageArcadeContent(classId);
+
+        match /matchPredictions/{predictionId} {
+          allow read: if isSameClass(classId);
+          allow create, update: if false;
+          allow delete: if canManageArcadeContent(classId);
+        }
+
+        match /{subPath=**} {
+          allow read: if isSameClass(classId) && !string(subPath).matches("^/?miniQuizAttempts/.*$");
+          allow write: if canManageArcadeContent(classId) && !string(subPath).matches("^/?miniQuizAttempts/.*$");
+        }
+
+        match /miniQuizAttempts/{attemptId} {
+          allow read: if canManageArcadeContent(classId);
+          allow write: if false;
+        }
+      }
+
+      match /arcadePrivate/{docId} {
+        allow read, write: if canManageArcadeContent(classId);
+
+        match /{subPath=**} {
+          allow read, write: if canManageArcadeContent(classId);
+        }
+      }
+
+      match /arcade_metadata/{docId} {
+        allow read: if isSameClass(classId);
+        allow create, update, delete: if canManageArcadeContent(classId);
+
+        match /{subPath=**} {
+          allow read: if isSameClass(classId);
+          allow write: if canManageArcadeContent(classId);
+        }
+      }
+
+      match /miniQuizQuestionSets/{setId} {
+        allow read: if canManageArcadeContent(classId);
+        allow create, update, delete: if canManageArcadeContent(classId);
+
+        match /{subPath=**} {
+          allow read: if canManageArcadeContent(classId);
+          allow write: if canManageArcadeContent(classId);
+        }
+      }
+
+      match /real_estate/{docId} {
+        allow read: if isSameClass(classId);
+        // Layout and grouping are written by server transactions so clients cannot
+        // overwrite a concurrent trade or a derived student-team assignment.
+        allow create, update, delete: if canManageRealEstateContent(classId) &&
+          docId == "config";
+
+        match /{subPath=**} {
+          allow read: if docId != "contracts" && isSameClass(classId);
+          allow write: if false;
+        }
+        match /records/{contractId} {
+          allow read: if docId == "contracts" && isSameClass(classId) &&
+            (resource.data.kind == "rent" ||
+              (resource.data.kind == "sale" && resource.data.partyIds is list &&
+                request.auth.uid in resource.data.partyIds) ||
+              isTeacher() || isAdmin() ||
+              ("permissions" in request.auth.token && canManageRealEstateContent(classId)));
+          allow write: if false;
+        }
+      }
+
+      match /newsCategories/{categoryId} {
+        allow read: if isSameClass(classId);
+        allow create, update, delete: if canManageNewsContent(classId);
+      }
+
+      // ??肉?
+      // - ??肉??곌랜梨뜻룇(??諛댁뎽/??瑜곸젧/????: ??흮亦???㉱?洹먮봿????怨룸츩雅?굝??뇡?a_nws)
+      // - ??얜Ŧ堉???戮깅? ?곌랜梨??UID ??쒖굣???1????諛댁뎽嶺????깅뮔
+      // - ?????stats): ??袁ⓥ뵛嶺????깅뮔, ??⑤슢?????類ㅼ뮅(Admin SDK) ?熬곣뫗??
+      match /surveys/{surveyId} {
+        allow read: if isSameClass(classId);
+        allow create, update, delete: if canManageNewsContent(classId);
+
+        match /responses/{responseUid} {
+          allow read: if isSameClass(classId) && (
+            canManageNewsContent(classId) ||
+            request.auth.uid == responseUid
+          );
+          allow create: if isSameClass(classId) &&
+            request.auth.uid == responseUid &&
+            request.resource.data.userId == request.auth.uid &&
+            request.resource.data.surveyId == surveyId;
+          allow update, delete: if false;
+        }
+
+        match /stats/{docId} {
+          allow read: if isSameClass(classId);
+          allow create, update, delete: if false;
+        }
+      }
+
+      match /news/{newsId} {
+        allow read: if isSameClass(classId);
+        allow create, delete: if canManageNewsContent(classId);
+        allow update: if isSameClass(classId) && (
+          canManageNewsContent(classId) ||
+          isNewsReactionPatchAllowed(classId)
+        );
+
+        match /comments/{commentId} {
+          allow read: if isSameClass(classId);
+          allow create: if isNewsCommentCreateAllowed(classId);
+          allow update: if false;
+          allow delete: if isNewsCommentDeleteAllowed(classId);
+        }
+      }
+
+      // ?熬곣뫁??濾곌쑨??????????쒖굣?????????怨룹꽘??嶺뚯쉳?????⑤슢???ル??(??類ㅼ뮅 ??貫???熬곣뫗??
+      match /students/{studentUid}/creditLogs/{logId} {
+        allow read: if canReadStudentDomainData(classId, studentUid, "a_crd");
+        allow create, update, delete: if false;
+      }
+
+      match /students/{studentUid}/creditHistory/{docId} {
+        allow read: if canReadStudentDomainData(classId, studentUid, "a_crd");
+        allow create, update, delete: if false;
+      }
+
+      match /students/{studentUid}/savings/{docId} {
+        allow read: if canReadStudentDomainData(classId, studentUid, "a_bnk");
+        allow create, update, delete: if false;
+      }
+
+      match /students/{studentUid}/loans/{docId} {
+        allow read: if canReadStudentDomainData(classId, studentUid, "a_bnk");
+        allow create, update, delete: if false;
+      }
+
+      match /students/{studentUid}/idempotency/{docId} {
+        allow read: if canReadStudentOperationalData(classId, studentUid);
+        allow create, update, delete: if false;
+      }
+
+      // ??怨룸츩 ??諛몄뵜 ?筌먦끉逾????곕뻣?곌랜??뵳???? ??⑤객臾???곌랜梨????쒖굣?묐슪彛?嶺뚯쉳????リ옇?▽빳?
+      match /students/{studentUid}/newsPopupAcks/{docId} {
+        allow read, create, update, delete: if isSameClass(classId) && (
+          request.auth.uid == studentUid ||
+          isAdmin()
+        );
+      }
+
+      match /students/{studentUid}/newsPopupDismissals/{docId} {
+        allow read, create, update, delete: if isSameClass(classId) && (
+          request.auth.uid == studentUid ||
+          isAdmin()
+        );
+      }
+
+      // ???逾?????쾳 嶺뚳퐣瑗???곌랜梨????쒖굣?묐슪彛????깅뮔)
+      match /students/{studentUid}/notifications/{docId} {
+        allow read: if isSameClass(classId) && (
+          request.auth.uid == studentUid ||
+          isAdmin()
+        );
+        allow create, delete: if isSameClass(classId) && isAdmin();
+        allow update: if isSameClass(classId) && (
+          isAdmin() ||
+          (
+            request.auth.uid == studentUid &&
+            request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(["isRead", "readAt"]) &&
+            resource.data.isRead == false &&
+            request.resource.data.isRead == true &&
+            request.resource.data.readAt is timestamp &&
+            request.resource.data.readAt == request.time
+          )
+        );
+      }
+
+      // ??⑤챷???縕ヨ?琉?????곌랜梨?????裕???⑤챷????㉱?洹먮봿????嶺뚯쉳?????⑤슢???띠럾???
+      match /students/{studentUid}/cart/{docId} {
+        allow read, write: if isSameClass(classId) && (
+          request.auth.uid == studentUid ||
+          canManageStoreContent(classId)
+        );
+      }
+
+      // ??⑤챷???筌뤾퍒萸??ル벣遊??????????????? ??類ㅼ뮅 ??貫??Admin SDK)嶺??リ옇?▽빳?
+      match /students/{studentUid}/inventory/{docId} {
+        allow read: if isSameClass(classId) && (
+          request.auth.uid == studentUid ||
+          canManageStoreContent(classId)
+        );
+        allow create, update, delete: if false;
+      }
+
+      match /students/{studentUid}/storeUsage/{docId} {
+        allow read: if isSameClass(classId) && (
+          request.auth.uid == studentUid ||
+          canManageStoreContent(classId)
+        );
+        allow create, update, delete: if false;
+      }
+
+      match /students/{studentUid}/usageHistory/{docId} {
+        allow read: if isSameClass(classId) && (
+          request.auth.uid == studentUid ||
+          canManageStoreContent(classId)
+        );
+        allow create, update, delete: if false;
+      }
+
+      match /students/{studentUid}/transactions/{docId} {
+        allow read, write: if false;
+
+        match /{subPath=**} {
+          allow read, write: if false;
+        }
+      }
+
+      match /students/{studentUid}/itemUsageHistory/{docId} {
+        allow read, write: if false;
+
+        match /{subPath=**} {
+          allow read, write: if false;
+        }
+      }
+
+      match /students/{studentUid}/taxBills/{docId} {
+        allow read: if isSameClass(classId) && (
+          request.auth.uid == studentUid ||
+          canManageTaxContent(classId)
+        );
+        allow create, update, delete: if canManageTaxContent(classId);
+      }
+
+      match /students/{studentUid}/monthEndSettlementStatements/{docId} {
+        allow read: if isSameClass(classId) && (
+          request.auth.uid == studentUid ||
+          isTeacher() ||
+          isAdmin()
+        );
+        allow create, update, delete: if false;
+      }
+
+      match /students/{studentUid}/paySlips/{docId} {
+        allow read: if canReadStudentPayrollData(classId, studentUid);
+        allow create, update, delete: if false;
+      }
+
+      match /students/{studentUid}/activityLogs/{logId} {
+        allow read: if canReadStudentOperationalData(classId, studentUid);
+        allow create, update, delete: if false;
+      }
+
+      match /students/{studentUid}/assetHistory/{docId} {
+        allow read: if canReadStudentDomainData(classId, studentUid, "a_ast");
+        allow create, update, delete: if false;
+      }
+
+      match /students/{studentUid}/notificationState/{docId} {
+        allow read: if docId == "main" &&
+          canReadStudentOperationalData(classId, studentUid);
+        allow create, update, delete: if false;
+
+        match /{subPath=**} {
+          allow read, write: if false;
+        }
+      }
+
+      match /students/{studentUid}/stockPortfolio/{symbol} {
+        allow read: if canReadStudentDomainData(classId, studentUid, "a_fiv");
+        allow create, update, delete: if false;
+      }
+
+      match /students/{studentUid}/stockDailySnapshots/{snapshotId} {
+        allow read: if canReadStudentDomainData(classId, studentUid, "a_fiv");
+        allow create, update, delete: if false;
+      }
+
+      match /students/{studentUid}/stockDividendPayouts/{payoutId} {
+        allow read: if canReadStudentDomainData(classId, studentUid, "a_fiv");
+        allow create, update, delete: if false;
+      }
+
+      match /students/{studentUid}/tradeHistory/{docId} {
+        allow read: if canReadStudentDomainData(classId, studentUid, "a_fiv");
+        allow create, update, delete: if false;
+      }
+
+      // SEC-104: paths that previously depended on the teacher-wide class
+      // fallback are listed explicitly below. Server projections remain
+      // client-read-only, and each direct client write is scoped to its
+      // owning workflow.
+      match /caseLibraryDrafts/{uid} {
+        allow read, delete: if (
+          isAdmin() ||
+          isTeacherForClass(classId)
+        ) &&
+          request.auth.uid == uid;
+        allow create, update: if (
+          isAdmin() ||
+          isTeacherForClass(classId)
+        ) &&
+          request.auth.uid == uid &&
+          request.resource.data.updatedAt == request.time;
+      }
+
+      match /notificationSummary/{summaryId} {
+        allow read: if canReadNotificationSummary(classId, summaryId);
+        allow create, update, delete: if false;
+
+        match /users/{uid} {
+          allow read: if summaryId == "assembly" &&
+            isStrictClassMember(classId) && (
+            request.auth.uid == uid ||
+            isAdmin() ||
+            isTeacherForClass(classId)
+          );
+          allow create, update, delete: if false;
+
+          match /{subPath=**} {
+            allow read, write: if false;
+          }
+        }
+
+        match /{subPath=**} {
+          allow read, write: if false;
+        }
+      }
+
+      match /analytics/{summaryId} {
+        allow read: if (
+          summaryId == "relativeEconomy" &&
+          canReadClassEconomyAnalytics(classId)
+        ) || (
+          summaryId == "incomeSettlement" &&
+          (
+            canManageClassTaxContentStrict(classId) ||
+            canManageClassPayrollContentStrict(classId)
+          )
+        );
+        allow create, update, delete: if false;
+      }
+
+      match /config/econ {
+        allow read: if canReadClassEconomyBaseline(classId);
+        allow create, update: if (
+          isAdmin() ||
+          isTeacherForClass(classId)
+        ) &&
+          isValidEconConfigPatch();
+        allow delete: if false;
+      }
+
+      match /credentialSummary/{summaryId} {
+        allow read: if summaryId == "teacherTitles" &&
+          canManageClassCredentialContentStrict(classId);
+        allow create, update, delete: if false;
+      }
+
+      match /systemSummary/{summaryId} {
+        allow read: if summaryId == "jobPermissionIndex" &&
+          canManageClassPayrollContentStrict(classId);
+        allow create, update, delete: if false;
+      }
+
+      match /studentJobAssignments/{studentUid} {
+        allow read: if canManageClassPayrollContentStrict(classId);
+        allow create, update: if canManageClassPayrollContentStrict(classId) &&
+          isValidStudentJobAssignment(classId, studentUid);
+        allow delete: if canManageClassPayrollContentStrict(classId);
+      }
+
+      match /jobRecruitmentRounds/{roundId} {
+        allow read: if isStrictClassMember(classId);
+        allow create: if canManageClassPayrollContentStrict(classId) &&
+          isValidJobRecruitmentRoundCreate(classId);
+        allow update: if canManageClassPayrollContentStrict(classId) &&
+          isValidJobRecruitmentRoundUpdate(classId);
+        allow delete: if canManageClassPayrollContentStrict(classId);
+      }
+
+      match /monthEndSettlementDrafts/{draftId} {
+        allow read: if canManageClassTaxContentStrict(classId) ||
+          canManageClassPayrollContentStrict(classId);
+        allow create, update, delete: if false;
+
+        match /studentRows/{studentUid} {
+          allow read: if canManageClassTaxContentStrict(classId) ||
+            canManageClassPayrollContentStrict(classId);
+          allow create, update, delete: if false;
+
+          match /{subPath=**} {
+            allow read, write: if false;
+          }
+        }
+
+        match /{subPath=**} {
+          allow read, write: if false;
+        }
+      }
+
+      match /monetaryHistory/{snapshotId} {
+        allow read: if canReadClassEconomyAnalytics(classId);
+        allow create, update, delete: if false;
+      }
+
+      match /classFunds/{fundId} {
+        allow read: if canReadClassFundContent(classId) ||
+          isClassFundOperatorData(classId, resource.data);
+        allow create, update, delete: if false;
+
+        match /{subPath=**} {
+          allow read: if canReadClassFundInvestmentContent(classId, fundId);
+          allow write: if false;
+        }
+      }
+
+      match /fundUsages/{usageId} {
+        allow read: if canReadClassFundContent(classId);
+        allow create, update, delete: if false;
+      }
+
+      match /real_estate_auctions/{auctionId} {
+        allow read: if isStrictClassMember(classId);
+        allow create, update, delete: if false;
+
+        match /{subPath=**} {
+          allow read: if canManageClassRealEstateContentStrict(classId);
+          allow write: if false;
+        }
+      }
+
+      match /storePriceSnapshots/{snapshotId} {
+        allow read: if canManageClassStoreContentStrict(classId);
+        allow create, update, delete: if false;
+      }
+
+      match /missions/{missionId} {
+        function missionMetadataKeys() {
+          return ["classId", "title", "description", "type", "timeWindow", "startDate", "endDate", "createdAt", "updatedAt",
+            "createdBy", "createdByName", "rewards", "reward", "rewardPolicy", "autoApprove", "requireSubmissionForm", "allowLateSubmission",
+            "targetStudentUids", "minCreditTier", "minCreditTierId", "minCreditTierName", "minCreditTierColor", "minCreditTierMinScore",
+            "displayOrder", "isActive", "availability", "maxPerDay", "repeatInfo", "isRepeating", "autoGenerated",
+            "stateStorageVersion", "completions", "submissionsIndex"];
+        }
+        function canonicalMission() {
+          return get(/databases/$(database)/documents/classes/$(classId)/missions/$(missionId)).data.get("stateStorageVersion", 1) == 2;
+        }
+        function safeMissionCreate() {
+          return !request.resource.data.keys().hasAny(["studentStateMirrorVersion", "studentStatePreparedAt", "stateStorageMigratedAt"]) &&
+            (request.resource.data.get("stateStorageVersion", 1) == 1 || (
+              request.resource.data.get("stateStorageVersion", 1) == 2 &&
+              request.resource.data.stateStorageVersion is int &&
+              request.resource.data.keys().hasOnly(missionMetadataKeys()) &&
+              request.resource.data.get("type", "single") != "always" &&
+              request.resource.data.get("completions", {}) == {} &&
+              request.resource.data.get("submissionsIndex", {}) == {} &&
+              get(/databases/$(database)/documents/classes/$(classId)).data.get("missionStudentStateVersion", 1) == 2 &&
+              get(/databases/$(database)/documents/internalMigrations/missionStudentStates).data.get("canonicalReady", false) == true
+            ));
+        }
+        function safeMissionUpdate() {
+          return request.resource.data.get("stateStorageVersion", 1) == resource.data.get("stateStorageVersion", 1) &&
+            !request.resource.data.diff(resource.data).affectedKeys().hasAny(["studentStateMirrorVersion", "studentStatePreparedAt", "stateStorageMigratedAt"]) &&
+            (resource.data.get("stateStorageVersion", 1) != 2 || (
+              request.resource.data.get("type", "single") == resource.data.get("type", "single") &&
+              request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                "title", "description", "timeWindow", "startDate", "endDate", "updatedAt",
+                "rewards", "reward", "rewardPolicy", "autoApprove", "requireSubmissionForm", "allowLateSubmission",
+                "targetStudentUids", "minCreditTier", "minCreditTierId", "minCreditTierName", "minCreditTierColor", "minCreditTierMinScore",
+                "displayOrder", "isActive", "availability", "maxPerDay", "repeatInfo", "isRepeating", "autoGenerated"
+              ])
+            ));
+        }
+        allow read: if isSameClass(classId);
+        allow create: if canManageMissionContent(classId) && safeMissionCreate();
+        allow update: if canManageMissionContent(classId) && safeMissionUpdate();
+        allow delete: if canManageMissionContent(classId);
+
+        match /submissions/{submissionId} {
+          allow read: if isSameClass(classId) && (!canonicalMission() ||
+            canManageMissionContent(classId) || resource.data.get("studentUid", "") == request.auth.uid);
+          allow create, update, delete: if canManageMissionContent(classId) && !canonicalMission();
+        }
+
+        match /students/{studentUid}/attempts/{attemptId} {
+          allow read: if isSameClass(classId) && (!canonicalMission() ||
+            canManageMissionContent(classId) || request.auth.uid == studentUid);
+          allow create, update, delete: if canManageMissionContent(classId) && !canonicalMission();
+        }
+
+        match /{subPath=**} {
+          allow read: if isSameClass(classId) && (!canonicalMission() || canManageMissionContent(classId));
+          // Recursive matches also include the parent (empty subPath). Keep
+          // that match from bypassing version and server-state restrictions.
+          allow write: if string(subPath) != "" && canManageMissionContent(classId) && !canonicalMission();
+        }
+      }
+
+    }
+
+    // Fund risk price histories and activation pointers are server-owned.
+    // Clients consume only the calculated summary stored on their class fund.
+    match /riskDatasets/{datasetId} {
+      allow read, write: if false;
+
+      match /{subPath=**} {
+        allow read, write: if false;
+      }
+    }
+
+    match /riskConfig/{configId} {
+      allow read, write: if false;
+    }
+
+    // =================================================
+    // [5] ??????熬곣뫁夷??users)
+    // =================================================
+    match /users/{uid} {
+      allow read: if isLoggedIn() && (
+        request.auth.uid == uid ||
+        isAdmin() ||
+        isSameClassTeacherToUser(uid)
+      );
+
+      allow update: if isLoggedIn() && (
+        isAdmin() ||
+        isSameClassTeacherToUser(uid) ||
+        isSafeSelfUserUpdate(uid)
+      );
+      allow create, delete: if isAdmin();
+
+      match /{subPath=**} {
+        allow read: if string(subPath).matches("^.+/.+$") &&
+          isLoggedIn() && (
+          request.auth.uid == uid ||
+          isAdmin()
+        );
+
+        allow write: if string(subPath).matches("^.+/.+$") &&
+          isLoggedIn() && (
+          request.auth.uid == uid ||
+          isAdmin()
+        );
+      }
+    }
+
+    // =================================================
+    // [6] 嶺뚣끉裕뉏펺?嶺뚢뼰維???リ옇???? admin嶺?
+    // =================================================
+    match /{path=**} {
+      allow read: if isAdmin() &&
+        !string(path).matches("^/?realEstateStorageMigrations(/.*)?$") &&
+        !string(path).matches("^/?classMaintenance(/.*)?$") &&
+        !string(path).matches("^internalDecisionContextCache/.*$") &&
+        !isServerOnlyFinancialRiskDocumentPath(string(path)) &&
+        !isRetiredStudentDocumentPath(string(path)) &&
+        (
+          !isServerOwnedNotificationStateDocumentPath(string(path)) ||
+          isServerOwnedNotificationStateMainDocumentPath(string(path))
+        );
+      allow write: if isAdmin() &&
+        !string(path).matches("^/?classes/[^/]+/studentRoster(/.*)?$") &&
+        !string(path).matches("^/?realEstateStorageMigrations(/.*)?$") &&
+        !string(path).matches("^/?classes/[^/]+/real_estate/(properties|contracts)(/.*)?$") &&
+        !string(path).matches("^/?classes/[^/]+/missions(/.*)?$") &&
+        !string(path).matches("^/?classes/[^/]+/students/[^/]+/missionState(/.*)?$") &&
+        !string(path).matches("^/?internalMigrations(/.*)?$") &&
+        !string(path).matches("^/?classMaintenance(/.*)?$") &&
+        !string(path).matches("^internalDecisionContextCache/.*$") &&
+        !isServerOnlyFinancialRiskDocumentPath(string(path)) &&
+        !isFinancialRequestReceiptDocumentPath(string(path)) &&
+        !isServerOwnedMiniQuizAttemptPath(string(path)) &&
+        !isServerOwnedStockDocumentPath(string(path)) &&
+        !isServerOwnedActivityLogDocumentPath(string(path)) &&
+        !isServerOwnedAssetHistoryDocumentPath(string(path)) &&
+        !isServerOwnedRealEstateLayoutPath(string(path)) &&
+        !isServerOwnedNotificationStateDocumentPath(string(path)) &&
+        !isRetiredStudentDocumentPath(string(path));
+    }
+  }
+}

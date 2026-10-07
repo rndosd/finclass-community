@@ -1,0 +1,42 @@
+.rent-contract-seat-picker--status .classroom-desk__viewer-content strong {
+  font-size: min(calc(17px * var(--desk-type-boost, 1)), calc(19px * var(--desk-display-scale, 1)));
+}
+
+.rent-contract-seat-picker--status .classroom-desk__viewer-content small {
+  font-size: min(calc(13px * var(--desk-type-boost, 1)), calc(14px * var(--desk-display-scale, 1)));
+}
+
+.rent-contract-seat-picker--status .classroom-desk__status {
+  font-size: min(calc(10px * var(--desk-type-boost, 1)), calc(14px * var(--desk-display-scale, 1)));
+}
+
+.rent-contract-seat-picker--neutral .classroom-desk__image {
+  visibility: hidden;
+}
+
+.rent-contract-seat-picker--neutral .classroom-desk__shape::after {
+  background: #ffffff;
+  border-color: #94a3b8;
+  box-shadow: 0 2px 4px rgb(51 65 85 / 16%);
+  transition: background-color 160ms ease, border-color 160ms ease;
+}
+
+.rent-contract-seat-picker--neutral .classroom-desk__content {
+  z-index: 1;
+}
+
+.rent-contract-seat-picker--neutral button:not(:disabled):hover .classroom-desk__shape::after {
+  background: #f0f7ff;
+  border-color: #60a5fa;
+}
+
+.rent-contract-seat-picker--neutral .classroom-desk--selected .classroom-desk__shape::after,
+.rent-contract-seat-picker--neutral button:not(:disabled):hover .classroom-desk--selected .classroom-desk__shape::after {
+  background: #dbeafe;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 1px rgb(59 130 246 / 20%), 0 2px 4px rgb(51 65 85 / 16%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rent-contract-seat-picker--neutral .classroom-desk__shape::after { transition: none; }
+}

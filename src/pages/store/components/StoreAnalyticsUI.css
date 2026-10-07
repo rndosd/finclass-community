@@ -1,0 +1,71 @@
+.store-analytics-ui button,
+.store-analytics-ui input:not([type="checkbox"]),
+.store-analytics-ui select {
+  min-height: 44px;
+  touch-action: manipulation;
+}
+
+.store-analytics-ui button:focus-visible,
+.store-analytics-ui summary:focus-visible,
+.store-analytics-ui [role="region"]:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 3px;
+}
+
+.store-period-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px 24px;
+}
+
+.store-applied-period {
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.store-period-fields label {
+  flex: 1 1 160px;
+  min-width: 0;
+  max-width: 260px;
+}
+
+.store-period-fields input {
+  width: 100%;
+  min-width: 0;
+}
+
+.store-analytics-ui summary {
+  min-height: 44px;
+  padding-top: 12px;
+  padding-bottom: 12px;
+  line-height: 20px;
+  touch-action: manipulation;
+}
+
+.store-chart-empty {
+  display: flex;
+  min-height: 224px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  border-radius: 12px;
+  background: #f8fafc;
+  text-align: center;
+}
+
+.store-price-note {
+  padding-left: 12px;
+  border-left: 3px solid #cbd5e1;
+}
+
+@media (max-width: 640px) {
+  .store-period-fields label {
+    max-width: none;
+  }
+  .store-applied-period {
+    width: 100%;
+  }
+}

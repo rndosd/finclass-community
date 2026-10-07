@@ -1,0 +1,246 @@
+/* Material cues stay on the game objects, with no continuous animation. */
+.arcade-paper-stage {
+  display: grid;
+  place-items: center;
+  height: clamp(260px, 48vh, 380px);
+  perspective: 1000px;
+}
+.arcade-paper-sheet {
+  position: relative;
+  width: min(48%, 210px);
+  aspect-ratio: 4 / 3;
+  transform: rotate(-3deg);
+  transform-style: preserve-3d;
+  transition: transform 900ms ease;
+}
+.arcade-paper-sheet.is-open { transform: rotate(0deg); }
+.arcade-paper-center, .arcade-paper-flap {
+  position: absolute;
+  inset: 0;
+  background-color: #fbf5e8;
+  background-image: linear-gradient(120deg, rgba(255,255,255,.84), rgba(248,237,213,.9)), var(--paper-texture);
+  background-size: auto, 128px 128px;
+  background-position: center;
+  border: 1px solid rgba(132,105,67,.18);
+}
+.arcade-paper-center {
+  box-shadow: 0 2px 0 #d9cbb2, 0 10px 18px rgba(51,40,26,.18);
+}
+.arcade-paper-center::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent 49.3%, rgba(116,91,53,.12) 50%, rgba(255,255,255,.8) 50.7%, transparent 51.2%), linear-gradient(transparent 49%, rgba(116,91,53,.1) 50%, rgba(255,255,255,.8) 51%, transparent 52%);
+}
+.arcade-paper-prize {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 180ms ease, visibility 180ms;
+}
+.is-open .arcade-paper-prize { opacity: 1; visibility: visible; transition-delay: 650ms; }
+.arcade-paper-prize h2 { font-size: clamp(16px, 4vw, 24px); line-height: 1.25; overflow-wrap: anywhere; }
+.arcade-paper-prize p { font-size: 12px; line-height: 1.35; overflow-wrap: anywhere; }
+.arcade-paper-flap {
+  backface-visibility: visible;
+  transition: transform 650ms cubic-bezier(.22,.7,.2,1), filter 650ms ease;
+  filter: brightness(.97);
+}
+.arcade-paper-flap--left {
+  clip-path: polygon(0 0, 53% 50%, 0 100%);
+  transform-origin: left center;
+  z-index: 2;
+}
+.arcade-paper-flap--right {
+  clip-path: polygon(100% 0, 47% 50%, 100% 100%);
+  transform-origin: right center;
+  z-index: 3;
+  filter: brightness(.93);
+}
+.arcade-paper-flap--bottom {
+  clip-path: polygon(0 100%, 50% 45%, 100% 100%);
+  transform-origin: center bottom;
+  z-index: 4;
+}
+.arcade-paper-flap--top {
+  clip-path: polygon(0 0, 50% 55%, 100% 0);
+  transform-origin: center top;
+  z-index: 5;
+  filter: brightness(1.015);
+}
+.is-open .arcade-paper-flap--top { transform: rotateX(180deg); filter: brightness(.98); }
+.is-open .arcade-paper-flap--bottom { transform: rotateX(-180deg); transition-delay: 130ms; filter: brightness(.94); }
+.is-open .arcade-paper-flap--left { transform: rotateY(-180deg); transition-delay: 210ms; filter: brightness(.98); }
+.is-open .arcade-paper-flap--right { transform: rotateY(180deg); transition-delay: 280ms; filter: brightness(1.01); }
+.arcade-paper-seal {
+  position: absolute;
+  z-index: 6;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  margin: -20px;
+  border-radius: 50%;
+  border: 1px solid #75b9a8;
+  background: #d8f2e7;
+  color: #315f68;
+  box-shadow: 0 2px 3px rgba(59,72,64,.16);
+  font-weight: 800;
+  transition: opacity 120ms;
+}
+.is-open .arcade-paper-seal { opacity: 0; }
+.arcade-wheel-face::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  /* Fixed light, separate from the rotating printed wheel. */
+  background: linear-gradient(135deg, rgba(255,255,255,.26), transparent 40%, rgba(15,23,42,.09));
+  box-shadow: inset 0 3px 5px rgba(255,255,255,.8), inset 0 -5px 8px rgba(15,23,42,.22);
+}
+.arcade-wheel-hub {
+  background: radial-gradient(circle at 32% 25%, #fffdf5, #e9e4d4 65%, #b8b8a8);
+  box-shadow: 0 3px 0 #6e796d, 0 6px 8px rgba(15,23,42,.2), inset 0 1px 2px #fff;
+}
+.arcade-wheel-needle-pin {
+  border: 2px solid #8c968c;
+  background: radial-gradient(circle at 30% 25%, #f1f2e9, #bac3b7 60%, #788679);
+  box-shadow: 0 2px 0 #6f7b6f, 0 3px 5px rgba(35,47,36,.25);
+}
+.arcade-wheel-needle { border-top-color: #ad6455; filter: drop-shadow(0 3px 2px rgba(65,45,33,.24)); }
+.arcade-paper-slot:not(:disabled)::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(145deg, transparent 49.3%, rgba(128,109,76,.15) 50%, rgba(255,255,255,.75) 50.8%, transparent 51.5%), linear-gradient(35deg, transparent 49.3%, rgba(128,109,76,.12) 50%, rgba(255,255,255,.75) 50.8%, transparent 51.5%);
+}
+.arcade-paper-slot:not(:disabled) > span {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid #8dc6b4;
+  border-radius: 50%;
+  background: #e2f3e8;
+  font-size: 10px;
+}
+.arcade-scratch-ticket {
+  position: relative;
+  padding: 16px;
+  border: 1px solid #83b6a6;
+  border-radius: 6px;
+  background: #faf5e9 url('../../../assets/arcade/paper-fiber-v2.svg') repeat;
+  box-shadow: 0 2px 0 #d4c8b1, 0 8px 18px rgba(57,47,30,.14), inset 0 1px 0 #fff;
+}
+.arcade-scratch-ticket::before, .arcade-scratch-ticket::after {
+  content: '';
+  position: absolute;
+  top: 12px;
+  bottom: 12px;
+  width: 4px;
+  background: radial-gradient(circle, #c7bda9 1px, transparent 1.5px) center / 4px 10px repeat-y;
+  pointer-events: none;
+}
+.arcade-scratch-ticket::before { left: 5px; }
+.arcade-scratch-ticket::after { right: 5px; }
+.arcade-scratch-ticket-label {
+  margin: 3px 0 0;
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -.03em;
+  color: #365b59;
+}
+.arcade-scratch-ticket-heading { display: flex; align-items: center; gap: 10px; padding: 0 0 13px; margin-bottom: 12px; border-bottom: 1px dashed #8bbbad; }
+.arcade-scratch-ticket-edition { color: #5c7470; font-size: 8px; font-weight: 650; letter-spacing: .12em; }
+.arcade-ticket-mark { color: #567b73; border: 1px solid #87a194; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; flex-shrink: 0; }
+.arcade-ticket-stamp { margin-left: auto; border: 1px solid #c67859; color: #ad573c; background: #fff0db; padding: 4px; font-size: 9px; font-weight: 700; line-height: 1.2; text-align: center; transform: rotate(6deg); flex-shrink: 0; }
+.arcade-scratch-ticket-footer { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding-top: 10px; color: #6f796b; font-size: 9px; line-height: 1.4; }
+.arcade-ticket-bars { width: 48px; height: 16px; opacity: .5; flex-shrink: 0; background: repeating-linear-gradient(90deg,#3e5c52 0 1px,transparent 1px 3px,#3e5c52 3px 5px,transparent 5px 6px,#3e5c52 6px 7px,transparent 7px 11px); }
+@media (max-width: 639px) {
+  .arcade-scratch-ticket { padding: 12px; }
+  .arcade-scratch-ticket-heading { gap: 6px; }
+  .arcade-scratch-ticket-label { font-size: 15px; }
+  .arcade-scratch-ticket-edition { font-size: 6px; }
+  .arcade-ticket-mark { width: 26px; height: 26px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .arcade-paper-sheet, .arcade-paper-flap, .arcade-paper-prize, .arcade-paper-seal { transition-duration: 0ms; transition-delay: 0ms !important; }
+}
+.arcade-game-dialog {
+  --arcade-accent: #147d76;
+  --arcade-tint: #e5f7f0;
+  border: 1px solid #d6e8e1;
+  border-radius: 20px;
+  background: linear-gradient(160deg, var(--arcade-tint), #fff 230px);
+  box-shadow: 0 20px 64px rgba(15,23,42,.22);
+}
+.arcade-game-dialog--roulette { --arcade-accent: #6851bc; --arcade-tint: #f0ebff; }
+.arcade-game-dialog--scratch { --arcade-accent: #b85943; --arcade-tint: #fff1e7; }
+.arcade-game-dialog::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 5px;
+  border-radius: 20px 20px 0 0;
+  background: linear-gradient(90deg, #72cdb8 0 40%, #f1b887 40% 65%, #afa0e0 65% 100%);
+  pointer-events: none;
+}
+.arcade-game-kicker {
+  display: inline-block;
+  margin-bottom: 8px;
+  padding: 3px 7px;
+  border: 1px dashed currentColor;
+  border-radius: 5px;
+  color: var(--arcade-accent);
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: .12em;
+}
+.arcade-game-header::after {
+  content: '';
+  position: absolute;
+  right: 58px;
+  top: 29px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #edb27e;
+  box-shadow: -12px 9px 0 #8dcdba, -3px 19px 0 #b3a2e2;
+  pointer-events: none;
+}
+.arcade-game-primary { box-shadow: 0 3px 0 #493791 !important; }
+.arcade-game-header h3 {
+  margin-top: 0;
+  font-size: 23px;
+  font-weight: 800;
+  line-height: 1.3;
+  letter-spacing: -.025em;
+}
+.arcade-game-header > p { font-weight: 400; line-height: 1.6; }
+.arcade-game-close { top: 18px; right: 18px; }
+.arcade-game-stats > div:not(.grid) {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0 8px;
+}
+.arcade-game-stats > div:not(.grid) + div { border-left: 1px solid #e3e7e6; }
+.arcade-game-note p { font-weight: 400; line-height: 1.6; }
+.arcade-game-dialog button { font-weight: 650; }
+.arcade-game-dialog > .relative > button { box-shadow: none; }
+@media (max-width: 639px) {
+  .arcade-game-header h3 { font-size: 21px; }
+  .arcade-game-header { flex-shrink: 0; }
+}

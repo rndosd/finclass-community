@@ -1,0 +1,6 @@
+.finclass-feedback-toast .finclass-feedback-title { display: block; font-weight: 700; color: var(--feedback-accent); line-height: 1.6; }
+.finclass-feedback-toast .finclass-feedback-description { margin-top: 5px; color: #334155; font-size: 13px; font-weight: 400; line-height: 1.7; }
+.finclass-feedback-toast .finclass-feedback-message { min-width: 0; }
+.finclass-feedback-toast .Toastify__toast-icon { width: 30px; min-width: 30px; height: 30px; padding: 4px; background: #ffffffb3; border-radius: 50%; margin-right: 12px; }
+.finclass-feedback-toast .Toastify__toast-icon svg { fill: var(--feedback-accent); }
+.finclass-feedback-toast .Toastify__close-button { color: #475569; opacity: .75; }

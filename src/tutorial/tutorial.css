@@ -1,0 +1,96 @@
+/* 🎨 finclass 튜토리얼 전용 고퀄리티 디자인 커스텀 */
+
+/* 1. 메인 팝업 박스 스타일 */
+.driver-popover {
+  border-radius: 20px !important; /* 더 둥글고 세련된 느낌 */
+  padding: 24px !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15) !important; /* 깊이감 있는 그림자 */
+  background-color: #ffffff !important;
+  border: 1px solid #f1f5f9 !important; /* 아주 연한 테두리 */
+  max-width: 380px !important;
+  font-family: inherit !important;
+}
+
+/* 2. 팝업 제목 (Title) */
+.driver-popover-title {
+  font-size: 1.2rem !important;
+  font-weight: 800 !important;
+  color: #0f172a !important; /* Slate-900 */
+  margin-bottom: 10px !important;
+  display: block !important;
+}
+
+/* 3. 🌟 설명 텍스트 (Description - 가독성 핵심) */
+.driver-popover-description {
+  font-size: 1rem !important;
+  line-height: 1.7 !important;
+  color: #475569 !important; /* Slate-600 */
+
+  /* 한글 가독성을 위한 단어 단위 줄바꿈 설정 */
+  word-break: keep-all !important;
+  overflow-wrap: break-word !important;
+  white-space: normal !important;
+}
+
+/* 4. 하단 버튼 구역 (Footer) */
+.driver-popover-footer {
+  margin-top: 20px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+}
+
+/* 5. 버튼 공통 스타일 */
+.driver-popover-footer button {
+  border-radius: 10px !important;
+  font-size: 0.875rem !important;
+  font-weight: 600 !important;
+  padding: 8px 16px !important;
+  text-shadow: none !important;
+  transition: all 0.2s ease !important;
+  cursor: pointer !important;
+}
+
+/* [이전] 버튼 스타일 */
+.driver-popover-prev-btn {
+  background-color: #f8fafc !important; /* Slate-50 */
+  color: #64748b !important; /* Slate-500 */
+  border: 1px solid #e2e8f0 !important;
+}
+
+.driver-popover-prev-btn:hover {
+  background-color: #f1f5f9 !important;
+  color: #334155 !important;
+}
+
+/* [다음] & [완료] 버튼 스타일 */
+.driver-popover-next-btn {
+  background-color: #4f46e5 !important; /* Indigo-600 */
+  color: #ffffff !important;
+  border: none !important;
+  box-shadow: 0 4px 10px rgba(79, 70, 229, 0.25) !important;
+}
+
+.driver-popover-next-btn:hover {
+  background-color: #4338ca !important;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 15px rgba(79, 70, 229, 0.35) !important;
+}
+
+/* 6. 진행률 표시 (Progress) */
+.driver-popover-progress-text {
+  font-size: 0.8rem !important;
+  font-weight: 500 !important;
+  color: #94a3b8 !important; /* Slate-400 */
+}
+
+/* 7. 🌟 강조 박스(Stage) 스타일 보정 */
+.driver-stage {
+  border-radius: 12px !important; /* 강조되는 박스 테두리 둥글게 */
+}
+
+/* 8. 사용자가 직접 열어야 하는 드롭다운/모달의 다음 대상 */
+.driver-active [data-tutorial-interactive="true"],
+.driver-active [data-tutorial-interactive="true"] * {
+  pointer-events: auto !important;
+}

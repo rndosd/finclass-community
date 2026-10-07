@@ -1,0 +1,444 @@
+@import "./styles/typography.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   1. 기본 레이아웃 및 초기화 (Base Layer)
+   ============================================================ */
+@layer base {
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html,
+  body,
+  #root {
+    min-height: 100%;
+    height: auto;
+    margin: 0;
+  }
+
+  body {
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    @apply bg-[#f0f5ff] text-slate-900 font-sans;
+  }
+
+  :where(input:not([data-unstyled-input="true"]):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="color"]),
+    select,
+    textarea) {
+    @apply rounded-xl border border-blue-200 bg-blue-50/50 text-slate-700 outline-none transition placeholder:text-slate-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400;
+  }
+
+  :where(input[type="checkbox"], input[type="radio"]) {
+    @apply border-slate-300 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  :where(table) {
+    @apply border-collapse text-left text-sm text-slate-700;
+  }
+
+  :where(th) {
+    @apply font-bold text-slate-500;
+  }
+
+  :where(td) {
+    @apply text-slate-700;
+  }
+}
+
+/* ============================================================
+   2. 커스텀 유틸리티 및 애니메이션 (Utilities Layer)
+   ============================================================ */
+@layer utilities {
+
+  /* --- [입력창] 숫자 스피너 제거 --- */
+  /* Chrome, Safari, Edge, Opera */
+  .no-spinner::-webkit-outer-spin-button,
+  .no-spinner::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    appearance: none;
+    /* 💡 표준 속성 추가 */
+    margin: 0;
+  }
+
+  /* Firefox */
+  .no-spinner {
+    -moz-appearance: textfield;
+    appearance: none;
+    /* 💡 표준 속성 추가 */
+  }
+
+  /* --- [룰렛] 바늘 떨림 효과 --- */
+  @keyframes needle-tick {
+
+    0%,
+    100% {
+      transform: translateX(-50%) rotate(0deg);
+    }
+
+    25% {
+      transform: translateX(-50%) rotate(-15deg);
+    }
+
+    75% {
+      transform: translateX(-50%) rotate(5deg);
+    }
+  }
+
+  .animate-needle-tick {
+    animation: needle-tick 0.15s infinite linear;
+  }
+
+  /* --- [공통] 팝업 진입 효과 --- */
+  @keyframes scale-in {
+    from {
+      transform: scale(0.9);
+      opacity: 0;
+    }
+
+    to {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  .animate-scale-in {
+    animation: scale-in 0.3s ease-out forwards;
+  }
+
+  /* --- [종이 뽑기] 찢어지는 물리 효과 --- */
+  @keyframes tear-top {
+    0% {
+      transform: translate(0, 0) rotate(0deg);
+      opacity: 1;
+    }
+
+    20% {
+      transform: translate(-2px, -5px) rotate(-3deg);
+    }
+
+    /* 찢어지는 찰나의 뒤틀림 */
+    100% {
+      transform: translate(-20px, -180%) rotate(-25deg) scale(0.8);
+      opacity: 0;
+    }
+  }
+
+  @keyframes tear-bottom {
+    0% {
+      transform: translate(0, 0) rotate(0deg);
+      opacity: 1;
+    }
+
+    20% {
+      transform: translate(2px, 5px) rotate(3deg);
+    }
+
+    100% {
+      transform: translate(20px, 180%) rotate(25deg) scale(0.8);
+      opacity: 0;
+    }
+  }
+
+  .animate-tear-top {
+    animation: tear-top 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+
+  .animate-tear-bottom {
+    animation: tear-bottom 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+
+  /* --- [종이 뽑기] 종이 한 장이 젖혀지는 효과 --- */
+  @keyframes paper-flip-up {
+    0% {
+      transform: rotateX(0deg) translateY(0) scale(1);
+      opacity: 1;
+      filter: blur(0px);
+    }
+
+    35% {
+      transform: rotateX(24deg) translateY(-6%) scale(1.01);
+      opacity: 1;
+      filter: blur(0px);
+    }
+
+    100% {
+      transform: rotateX(88deg) translateY(-38%) scale(0.92);
+      opacity: 0.08;
+      filter: blur(1px);
+    }
+  }
+
+  @keyframes paper-corner-fold {
+    0% {
+      transform: translate(0, 0) rotate(0deg);
+      opacity: 0.7;
+    }
+
+    40% {
+      transform: translate(-1px, 1px) rotate(-8deg);
+      opacity: 0.95;
+    }
+
+    100% {
+      transform: translate(-6px, 4px) rotate(-24deg);
+      opacity: 0;
+    }
+  }
+
+  .animate-paper-flip-up {
+    transform-origin: top center;
+    animation: paper-flip-up 0.62s cubic-bezier(0.2, 0.75, 0.2, 1) forwards;
+  }
+
+  .animate-paper-corner-fold {
+    transform-origin: top right;
+    animation: paper-corner-fold 0.58s ease-out forwards;
+  }
+
+  @keyframes paper-unfold {
+    0% {
+      transform: rotateX(0deg) rotateZ(0deg) scale(1);
+      filter: brightness(1);
+    }
+
+    32% {
+      transform: rotateX(18deg) rotateZ(-1.5deg) scale(0.98);
+      filter: brightness(0.98);
+    }
+
+    72% {
+      transform: rotateX(-10deg) rotateZ(1deg) scale(1.08);
+      filter: brightness(1.05);
+    }
+
+    100% {
+      transform: rotateX(0deg) rotateZ(0deg) scale(1.18);
+      opacity: 0;
+      filter: brightness(1.12);
+    }
+  }
+
+  @keyframes paper-reveal-pop {
+    0% {
+      transform: translateY(10px) scale(0.9);
+      opacity: 0;
+    }
+
+    58% {
+      transform: translateY(-4px) scale(1.04);
+      opacity: 1;
+    }
+
+    100% {
+      transform: translateY(0) scale(1);
+      opacity: 1;
+    }
+  }
+
+  .animate-paper-unfold {
+    transform-origin: center center;
+    animation: paper-unfold 0.72s cubic-bezier(0.2, 0.72, 0.2, 1) forwards;
+  }
+
+  .animate-paper-reveal-pop {
+    animation: paper-reveal-pop 0.34s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  }
+
+  @keyframes nostalgia-ticket-float {
+    0%,
+    100% {
+      transform: translate(-50%, -50%) rotate(-1deg);
+    }
+
+    50% {
+      transform: translate(-50%, -53%) rotate(1deg);
+    }
+  }
+
+  @keyframes nostalgia-ticket-spin {
+    0% {
+      transform: translate(-50%, -50%) rotate(-8deg) scale(0.96);
+      filter: blur(0);
+    }
+
+    28% {
+      transform: translate(-50%, -58%) rotate(11deg) scale(1.03);
+      filter: blur(1px);
+    }
+
+    62% {
+      transform: translate(-50%, -46%) rotate(-6deg) scale(1.08);
+      filter: blur(0);
+    }
+
+    100% {
+      transform: translate(-50%, -50%) rotate(0deg) scale(1);
+      filter: blur(0);
+    }
+  }
+
+  @keyframes nostalgia-ticket-reveal {
+    0% {
+      transform: translateY(18px) rotateX(16deg) scale(0.92);
+      opacity: 0;
+    }
+
+    62% {
+      transform: translateY(-4px) rotateX(0deg) scale(1.03);
+      opacity: 1;
+    }
+
+    100% {
+      transform: translateY(0) rotateX(0deg) scale(1);
+      opacity: 1;
+    }
+  }
+
+  .animate-nostalgia-ticket-float {
+    animation: nostalgia-ticket-float 2.1s ease-in-out infinite;
+  }
+
+  .animate-nostalgia-ticket-spin {
+    animation: nostalgia-ticket-spin 0.85s cubic-bezier(0.2, 0.72, 0.2, 1) forwards;
+  }
+
+  .animate-nostalgia-ticket-reveal {
+    transform-origin: center top;
+    animation: nostalgia-ticket-reveal 0.42s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  }
+
+  .title-stage-rail-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .title-stage-rail-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* 스크롤바 커스텀 */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-slate-200 rounded-full hover:bg-slate-300;
+  }
+
+  /* Hide the rail while preserving wheel, touch and keyboard scrolling. */
+  .sidebar-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .sidebar-scrollbar::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+
+  /* Rich HTML paragraphs should keep editor spacing in rendered views too. */
+  .prose p,
+  .ProseMirror p {
+    margin: 0;
+    line-height: 1.65;
+  }
+
+  .realestate-contract-body {
+    color: #334155;
+    font-size: 0.95rem;
+    line-height: 1.8;
+  }
+
+  .realestate-contract-body h3 {
+    margin: 1.1rem 0 0.55rem;
+    padding: 0.45rem 0.7rem;
+    border-left: 4px solid #2563eb;
+    border-radius: 0.65rem;
+    background: #eff6ff;
+    color: #1e3a8a;
+    font-size: 0.92rem;
+    font-weight: 900;
+    line-height: 1.35;
+  }
+
+  .realestate-contract-body h3:first-child {
+    margin-top: 0;
+  }
+
+  .realestate-contract-body p {
+    margin: 0.45rem 0 0;
+    line-height: 1.85;
+  }
+
+  .realestate-contract-body ul,
+  .realestate-contract-body ol {
+    display: grid;
+    gap: 0.35rem;
+    margin: 0.55rem 0 0;
+    padding-left: 1.25rem;
+  }
+
+  .realestate-contract-body li {
+    line-height: 1.75;
+  }
+
+  .prose p:empty,
+  .ProseMirror p:empty {
+    min-height: 1.65em;
+  }
+
+  @supports selector(p:has(> br:only-child)) {
+    .prose p:has(> br:only-child),
+    .ProseMirror p:has(> br:only-child) {
+      min-height: 1.65em;
+    }
+  }
+
+  img[data-align="inline"] {
+    clear: none;
+    display: inline-block;
+    vertical-align: top;
+    width: min(100%, 320px);
+    max-width: min(100%, 320px);
+    height: auto;
+    margin: 0.75rem 0.75rem 0.9rem 0;
+  }
+
+  img[data-align="inline"][data-inline-group-size="2"] {
+    width: calc((100% - 0.75rem) / 2);
+    max-width: calc((100% - 0.75rem) / 2);
+  }
+
+  img[data-align="inline"][data-inline-group-size="3"] {
+    width: calc((100% - 1.5rem) / 3);
+    max-width: calc((100% - 1.5rem) / 3);
+  }
+
+  img[data-align="inline"][data-inline-group-size="2"][data-inline-group-index="1"],
+  img[data-align="inline"][data-inline-group-size="3"][data-inline-group-index="2"] {
+    margin-right: 0;
+  }
+
+  @media (max-width: 640px) {
+    img[data-align="inline"] {
+      display: block;
+      width: 100% !important;
+      max-width: 100% !important;
+      margin: 0.75rem auto;
+    }
+  }
+}

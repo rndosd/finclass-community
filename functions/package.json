@@ -1,0 +1,49 @@
+{
+  "name": "functions",
+  "description": "Cloud Functions for Firebase",
+  "private": true,
+  "type": "commonjs",
+  "main": "index.js",
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "lint": "eslint . --ext .js",
+    "test": "node --test --test-concurrency=1"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "3.1095.0",
+    "@aws-sdk/s3-request-presigner": "3.1095.0",
+    "@google-cloud/tasks": "^6.2.3",
+    "@google/generative-ai": "^0.24.1",
+    "axios": "1.18.1",
+    "cors": "^2.8.5",
+    "dayjs": "^1.11.13",
+    "dotenv": "^17.2.3",
+    "firebase-admin": "14.2.0",
+    "firebase-functions": "7.3.0",
+    "glob": "^13.0.6"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.0",
+    "eslint-config-google": "^0.14.0"
+  },
+  "overrides": {
+    "@google-cloud/storage": {
+      "uuid": "11.1.1"
+    },
+    "firebase-functions": {
+      "express": {
+        "qs": "6.15.3"
+      }
+    },
+    "google-gax": {
+      "rimraf": {
+        "glob": {
+          "minimatch": "9.0.8"
+        }
+      }
+    }
+  },
+  "license": "PolyForm-Noncommercial-1.0.0"
+}

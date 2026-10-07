@@ -1,0 +1,16 @@
+{
+  "short_name": "핀클래스",
+  "name": "핀클래스 FinClass",
+  "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "16x16 24x24 32x32 64x64",
+      "type": "image/x-icon",
+      "purpose": "any"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#1f6fb3",
+  "background_color": "#1f6fb3"
+}

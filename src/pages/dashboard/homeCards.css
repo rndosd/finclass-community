@@ -1,0 +1,1005 @@
+/* Visual values copied from the user-approved localhost:4186 prototype. */
+.fc-home-card {
+  grid-column: span var(--span);
+  grid-row: span var(--rows);
+  position: relative;
+  padding: 24px 20px 16px;
+  border-radius: 25px;
+  min-height: 408px;
+  background: #edf4ff;
+  border: 1px solid #dce9ff;
+  box-shadow: 0 4px 8px #7eabe52c;
+  display: flex;
+  flex-direction: column;
+  isolation: isolate;
+  container-type: inline-size;
+}
+.fc-home-card.fc-home-card--compact {
+  min-height: 354px;
+}
+.fc-home-card.fc-home-card--news {
+  background: transparent;
+  border: 0;
+  padding: 24px;
+}
+.fc-home-card--news::before {
+  content: '';
+  position: absolute;
+  /* The paper face occupies y=75..885 of the 961px asset.
+     Compensate for its transparent margins so it aligns with the card bounds. */
+  inset: -9.26% -3% -9.38%;
+  z-index: -1;
+  background: url('../../assets/dashboard/home-news-paper-v2.webp') center/100% 100% no-repeat;
+  pointer-events: none;
+}
+.fc-home-card--mission {
+  background: #eef7f8;
+  border-color: #d9ebf1;
+}
+.fc-home-card--credit {
+  background: var(--credit-surface, #f0f1fc);
+  border-color: var(--credit-border, #e0e5fa);
+}
+.fc-home-card--donation {
+  background: #f6f1fa;
+  border-color: #e8e1f3;
+}
+.fc-home-card-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  position: relative;
+  z-index: 1;
+}
+.fc-home-card-heading h2 {
+  font-size: 22px;
+  letter-spacing: -.7px;
+}
+.fc-home-card .fc-home-icon {
+  width: 43px;
+  height: 43px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.fc-home-card .fc-home-blue {
+  color: var(--blue);
+}
+.fc-home-card .fc-home-mint {
+  color: var(--mint);
+}
+.fc-home-card .fc-home-lavender {
+  color: var(--purple);
+}
+.fc-home-card .fc-home-rose {
+  color: var(--rose);
+}
+.fc-home-card .fc-home-icon.fc-home-blue {
+  background: #e2eeff;
+}
+.fc-home-card .fc-home-icon.fc-home-mint {
+  background: #def8ed;
+}
+.fc-home-card .fc-home-icon.fc-home-lavender {
+  background: #eee5ff;
+}
+.fc-home-card .fc-home-icon.fc-home-rose {
+  background: #ffe5ee;
+}
+.fc-home-card--news .fc-home-icon {
+  border-radius: 8px;
+  background: #e7eff8;
+  color: #92aaca;
+}
+.fc-home-card--news .fc-home-card-heading {
+  padding-bottom: 18px;
+  border-bottom: 1px solid #bbcee4;
+}
+.fc-home-card--news time {
+  margin-left: auto;
+  font-size: 11px;
+  color: #6f88af;
+  white-space: nowrap;
+}
+.fc-home-card .fc-home-news-list {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+.fc-home-card .fc-home-news-list>button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  text-align: left;
+  gap: 15px;
+  padding: 16px 6px;
+  min-height: 57px;
+  font-size: 15px;
+  font-weight: 700;
+  border-bottom: 1px solid #cbd9ea;
+}
+.fc-home-card .fc-home-news-list>button svg {
+  color: #9fb8d8;
+}
+.fc-home-card .fc-home-news-list>button:hover {
+  background: #eef5ff;
+}
+.fc-home-card .fc-home-art {
+  position: absolute;
+  pointer-events: none;
+  object-fit: contain;
+  z-index: 0;
+}
+.fc-home-card .fc-home-wallet-art {
+  width: 152px;
+  height: 152px;
+  right: 12px;
+  top: 35px;
+}
+.fc-home-card .fc-home-asset-summary {
+  margin-top: 24px;
+  padding-right: 122px;
+  min-height: 102px;
+}
+.fc-home-card .fc-home-muted {
+  color: #8194b4;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.fc-home-card .fc-home-amount {
+  font-size: 40px;
+  font-weight: 800;
+  line-height: 1.4;
+  letter-spacing: -1.5px;
+  white-space: nowrap;
+}
+.fc-home-card .fc-home-amount span {
+  font-size: 17px;
+  letter-spacing: 0;
+  margin-left: 5px;
+}
+.fc-home-card .fc-home-amount.fc-home-long-number {
+  font-size: 29px;
+  letter-spacing: -1px;
+}
+.fc-home-card .fc-home-job-strip {
+  display: flex;
+  align-items: stretch;
+  border-radius: 17px;
+  background: #e0ecff;
+  margin: 14px 0 15px;
+  padding: 14px 15px;
+  gap: 14px;
+}
+.fc-home-card .fc-home-job-strip>div {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  color: var(--blue);
+}
+.fc-home-card .fc-home-job-strip>div+div {
+  border-left: 1px solid #bdd1ee;
+  padding-left: 18px;
+}
+.fc-home-card .fc-home-job-strip span {
+  min-width: 0;
+}
+.fc-home-card .fc-home-job-strip small {
+  display: block;
+  font-size: 11px;
+  margin-bottom: 6px;
+}
+.fc-home-card .fc-home-job-strip strong {
+  display: block;
+  font-size: 18px;
+  color: #101d3b;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.fc-home-card .fc-home-job-strip em {
+  font-style: normal;
+  font-size: 12px;
+  margin-left: 4px;
+}
+.fc-home-card .fc-home-composition {
+  display: flex;
+  justify-content: space-between;
+  gap: 5px;
+  font-size: 10px;
+  color: #6980a7;
+  flex-wrap: wrap;
+  margin: 1px 0 15px;
+}
+.fc-home-card .fc-home-composition span::before {
+  content: '';
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 4px;
+  border-radius: 50%;
+  background: #a7b2c5;
+}
+.fc-home-card .fc-home-composition span:nth-child(2)::before {
+  background: #5192ff;
+}
+.fc-home-card .fc-home-composition span:nth-child(3)::before {
+  background: #00bb9e;
+}
+.fc-home-card .fc-home-composition span:nth-child(4)::before {
+  background: #ffbe27;
+}
+.fc-home-card .fc-home-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border-radius: 18px;
+  width: 100%;
+  min-height: 49px;
+  margin-top: auto;
+  font-weight: 700;
+  font-size: 14px;
+  position: relative;
+  z-index: 1;
+}
+.fc-home-card .fc-home-action.fc-home-blue {
+  background: #deecff;
+}
+.fc-home-card .fc-home-action.fc-home-mint {
+  background: #e1f7ee;
+}
+.fc-home-card .fc-home-action.fc-home-lavender {
+  background: #ede4ff;
+}
+.fc-home-card .fc-home-action.fc-home-rose {
+  background: #ffe7ee;
+}
+.fc-home-card .fc-home-action:hover {
+  filter: brightness(.97);
+}
+.fc-home-card .fc-home-mission-art {
+  width: 116px;
+  height: 116px;
+  right: 7px;
+  top: -7px;
+}
+.fc-home-card--mission .fc-home-card-heading {
+  padding-right: 55px;
+}
+.fc-home-card .fc-home-mission-list {
+  margin-top: 34px;
+  margin-bottom: 11px;
+  position: relative;
+}
+.fc-home-card .fc-home-mission-list>button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: space-between;
+  padding: 13px 0;
+  width: 100%;
+  text-align: left;
+  border-bottom: 1px solid #e1eae7;
+  font-size: 14px;
+}
+.fc-home-card .fc-home-mission-list strong {
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.fc-home-card .fc-home-deadline {
+  flex-shrink: 0;
+  color: #fa5273;
+  background: #ffedf1;
+  border-radius: 14px;
+  padding: 5px 9px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.fc-home-card .fc-home-more {
+  align-self: flex-start;
+  color: var(--mint);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 2px 0 15px;
+}
+.fc-home-card .fc-home-credit-art {
+  width: 132px;
+  height: 132px;
+  right: 2px;
+  top: 69px;
+}
+.fc-home-card .fc-home-credit-summary {
+  margin-top: 23px;
+  padding-right: 95px;
+  min-height: 132px;
+}
+.fc-home-card .fc-home-credit-summary p {
+  font-size: 12px;
+}
+.fc-home-card .fc-home-tier {
+  display: block;
+  color: var(--purple);
+  font-size: 28px;
+  line-height: 1.35;
+}
+.fc-home-card .fc-home-credit-value {
+  font-size: 34px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+.fc-home-card .fc-home-credit-value span {
+  font-size: 16px;
+  margin-left: 4px;
+}
+.fc-home-card .fc-home-progress-label,.fc-home-card .fc-home-progress-caption {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #8194b4;
+  gap: 10px;
+}
+.fc-home-card .fc-home-progress-caption {
+  margin: 6px 0 13px;
+}
+.fc-home-card .fc-home-progress-label {
+  margin-bottom: 7px;
+}
+.fc-home-card .fc-home-progress {
+  display: block;
+  appearance: none;
+  border: 0;
+  border-radius: 15px;
+  width: 100%;
+  height: 12px;
+  overflow: hidden;
+  background: #eadff9;
+}
+.fc-home-card .fc-home-progress::-webkit-progress-bar {
+  background: #eadff9;
+  border-radius: 15px;
+}
+.fc-home-card .fc-home-progress::-webkit-progress-value {
+  background: #9960ff;
+  border-radius: 15px;
+}
+.fc-home-card .fc-home-progress::-moz-progress-bar {
+  background: #9960ff;
+  border-radius: 15px;
+}
+.fc-home-card .fc-home-tools {
+  display: flex;
+  margin-left: auto;
+  gap: 3px;
+}
+.fc-home-card .fc-home-tools button {
+  padding: 3px;
+  color: #8e8896;
+}
+.fc-home-card .fc-home-tools button:first-child {
+  color: #e99811;
+}
+.fc-home-card .fc-home-donation-art {
+  width: 114px;
+  height: 114px;
+  right: 11px;
+  top: 53px;
+}
+.fc-home-card .fc-home-donation-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin: 31px 0 19px;
+  min-height: 101px;
+  position: relative;
+}
+.fc-home-card .fc-home-donation-summary>div:first-child>strong {
+  display: block;
+  font-size: 43px;
+  font-weight: 800;
+  color: var(--rose);
+  letter-spacing: -1px;
+  line-height: 1.3;
+}
+.fc-home-card .fc-home-donation-summary strong span {
+  font-size: 22px;
+  margin-left: 5px;
+}
+.fc-home-card .fc-home-donation-summary p {
+  font-size: 12px;
+  color: #8497b8;
+  margin-top: 3px;
+}
+.fc-home-card .fc-home-donation-percent {
+  color: var(--rose);
+  text-align: center;
+  padding: 0 9px;
+}
+.fc-home-card .fc-home-donation-percent strong {
+  font-size: 27px;
+}
+.fc-home-card .fc-home-donation-percent small {
+  display: block;
+  font-size: 10px;
+}
+.fc-home-card .fc-home-progress {
+  height: 12px;
+  background: #fae3eb;
+}
+.fc-home-card .fc-home-progress::-webkit-progress-bar {
+  background: #fae3eb;
+}
+.fc-home-card .fc-home-progress::-webkit-progress-value {
+  background: #f44075;
+}
+.fc-home-card .fc-home-progress::-moz-progress-bar {
+  background: #f44075;
+}
+.fc-home-card .fc-home-remaining {
+  font-size: 13px;
+  color: #8396b7;
+  margin: 13px 0 20px;
+}
+.fc-home-card .fc-home-empty {
+  color: #8194b4;
+  text-align: center;
+  min-height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+@container (max-width:350px) {
+  .fc-home-card-heading h2 {
+  font-size: 19px;
+}
+}
+@container (max-width:350px) {
+  .fc-home-card .fc-home-icon {
+  width: 36px;
+  height: 36px;
+}
+}
+@container (max-width:350px) {
+  .fc-home-card .fc-home-amount {
+  font-size: 30px;
+}
+}
+@container (max-width:350px) {
+  .fc-home-card .fc-home-amount.fc-home-long-number {
+  font-size: 22px;
+}
+}
+@container (max-width:350px) {
+  .fc-home-card .fc-home-wallet-art {
+  width: 115px;
+  height: 115px;
+  top: 45px;
+}
+}
+@container (max-width:350px) {
+  .fc-home-card .fc-home-asset-summary {
+  padding-right: 85px;
+}
+}
+@container (max-width:350px) {
+  .fc-home-card .fc-home-job-strip {
+  padding: 12px 10px;
+  gap: 8px;
+}
+}
+@container (max-width:350px) {
+  .fc-home-card .fc-home-job-strip strong {
+  font-size: 15px;
+}
+}
+@container (max-width:350px) {
+  .fc-home-card .fc-home-job-strip>div+div {
+  padding-left: 10px;
+}
+}
+@container (max-width:350px) {
+  .fc-home-card .fc-home-composition {
+  font-size: 9px;
+}
+}
+@container (max-width:350px) {
+  .fc-home-card .fc-home-mission-list>button {
+  font-size: 12px;
+}
+}
+@container (max-width:350px) {
+  .fc-home-card .fc-home-deadline {
+  font-size: 10px;
+  padding: 4px 7px;
+}
+}
+@container (max-width:350px) {
+  .fc-home-card .fc-home-mission-art {
+  width: 95px;
+  height: 95px;
+}
+}
+@container (max-width:350px) {
+  .fc-home-card .fc-home-credit-art {
+  width: 110px;
+  height: 110px;
+  top: 77px;
+}
+}
+@container (max-width:350px) {
+  .fc-home-card .fc-home-donation-art {
+  width: 98px;
+  height: 98px;
+  top: 53px;
+}
+}
+@container (max-width:350px) {
+  .fc-home-card .fc-home-donation-summary>div:first-child>strong {
+  font-size: 37px;
+}
+}
+@container (max-width:350px) {
+  .fc-home-card .fc-home-tools {
+  gap: 0;
+}
+}
+@container (max-width:350px) {
+  .fc-home-card--news time {
+  font-size: 10px;
+}
+}
+@container (max-width:350px) {
+  .fc-home-card--news .fc-home-card-heading {
+  flex-wrap: wrap;
+}
+}
+@container (max-width:350px) {
+  .fc-home-card--news time {
+  margin-left: 46px;
+}
+}
+@container (max-width:350px) {
+  .fc-home-card .fc-home-news-list>button {
+  font-size: 14px;
+}
+}
+@media(max-width:1050px) {
+  .fc-home-card {
+  padding: 20px 16px;
+  min-height: 380px;
+}
+}
+@media(max-width:1050px) {
+  .fc-home-card.fc-home-card--compact {
+  min-height: 342px;
+}
+}
+@media(max-width:1050px) {
+  .fc-home-card--news {
+  padding: 22px!important;
+}
+}
+@media(max-width:1050px) {
+  .fc-home-card--news .fc-home-card-heading {
+  flex-wrap: wrap;
+}
+}
+@media(max-width:1050px) {
+  .fc-home-card--news time {
+  margin-left: 53px;
+}
+}
+@media(max-width:1050px) {
+  .fc-home-card-heading h2 {
+  font-size: 20px;
+}
+}
+@media(max-width:800px) {
+  .fc-home-card {
+  grid-column: span 1;
+  grid-row: span 1;
+  min-height: 370px;
+}
+}
+@media(max-width:800px) {
+  .fc-home-card.fc-home-card--news,.fc-home-card:only-child {
+  grid-column: span 2;
+}
+}
+@media(max-width:560px) {
+  .fc-home-card,.fc-home-card.fc-home-card--news,.fc-home-card:only-child {
+  grid-column: span 1;
+  grid-row: span 1;
+  min-height: 354px;
+}
+}
+@media(max-width:560px) {
+  .fc-home-card.fc-home-card--news {
+  min-height: 390px;
+}
+}
+@media(max-width:560px) {
+  .fc-home-card--news .fc-home-card-heading {
+  gap: 8px;
+}
+}
+@media(max-width:560px) {
+  .fc-home-card--news time {
+  margin-left: 45px;
+}
+}
+@media(max-width:560px) {
+  .fc-home-card .fc-home-news-list>button {
+  font-size: 13px;
+}
+}
+@media(max-width:560px) {
+  .fc-home-card .fc-home-amount {
+  font-size: 32px;
+}
+}
+@media(max-width:560px) {
+  .fc-home-card .fc-home-asset-summary {
+  padding-right: 85px;
+}
+}
+@media(max-width:560px) {
+  .fc-home-card .fc-home-wallet-art {
+  width: 114px;
+  height: 114px;
+}
+}
+@media(max-width:560px) {
+  .fc-home-card .fc-home-amount.fc-home-long-number {
+  font-size: 23px;
+}
+}
+.fc-home-card--asset.fc-home-long-data .fc-home-wallet-art {
+  width: 80px;
+  height: 80px;
+  top: 9px;
+  right: 14px;
+}
+.fc-home-card--asset.fc-home-long-data .fc-home-asset-summary {
+  padding-right: 0;
+}
+.fc-home-card .fc-home-muted,.fc-home-card .fc-home-progress-label,.fc-home-card .fc-home-progress-caption,.fc-home-card .fc-home-remaining,.fc-home-card .fc-home-composition,.fc-home-card .fc-home-donation-summary p {
+  color: #637a9e;
+}
+.fc-home-card .fc-home-deadline {
+  color: #cd3154;
+}
+.fc-home-card .fc-home-tier {
+  font-weight: 800;
+}
+.fc-home-card-heading h2 {
+  font-weight: 800;
+}
+@media(max-width:560px) {
+  .fc-home-card .fc-home-wallet-art {
+  top: 14px;
+  width: 96px;
+  height: 96px;
+}
+}
+@media(max-width:560px) {
+  .fc-home-card .fc-home-asset-summary {
+  padding-right: 0;
+}
+}
+@media(max-width:560px) {
+  .fc-home-card .fc-home-amount {
+  font-size: 32px;
+}
+}
+@media(max-width:560px) {
+  .fc-home-card .fc-home-amount.fc-home-long-number {
+  font-size: 25px;
+}
+}
+.fc-home-card--asset .fc-home-wallet-art {
+  top: 8px;
+  right: 14px;
+  width: 112px;
+  height: 112px;
+}
+.fc-home-card--asset .fc-home-asset-summary {
+  padding-right: 0;
+  padding-top: 12px;
+  min-height: 114px;
+}
+.fc-home-card--asset .fc-home-amount {
+  position: relative;
+  z-index: 1;
+}
+.fc-home-card--asset.fc-home-long-data .fc-home-wallet-art {
+  width: 80px;
+  height: 80px;
+  top: 9px;
+}
+@container(max-width:350px) {
+  .fc-home-card--asset .fc-home-wallet-art {
+  width: 94px;
+  height: 94px;
+  top: 12px;
+}
+}
+@container(max-width:350px) {
+  .fc-home-card--asset .fc-home-amount {
+  font-size: 30px;
+}
+}
+@container(max-width:350px) {
+  .fc-home-card--asset .fc-home-amount.fc-home-long-number {
+  font-size: 25px;
+}
+}
+.fc-home-card {
+  --blue: #3275ff;
+  --mint: #00ae92;
+  --purple: #9360f0;
+  --rose: #f44075;
+  height: 100%;
+  padding: 0!important;
+  color: #0b1734;
+  background: #edf4ff!important;
+  box-shadow: 0 4px 8px #7eabe52c!important;
+  border-radius: 25px!important;
+}
+.fc-home-card--mission {
+  background: #eef7f8!important;
+}
+.fc-home-card--credit {
+  background: var(--credit-surface, #f0f1fc)!important;
+}
+.fc-home-card--donation {
+  background: #f6f1fa!important;
+}
+.fc-home-card--news {
+  background: transparent!important;
+}
+.fc-home-card-content {
+  padding: 24px 20px 16px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 0;
+}
+.fc-home-card--news .fc-home-card-content {
+  padding: 24px;
+}
+.fc-home-card--news::before {
+  background-image: url('../../assets/dashboard/home-news-paper-v2.webp');
+  z-index: 0;
+}
+.fc-home-card-heading h2 {
+  font-weight: 800;
+}
+.fc-home-card .fc-home-icon {
+  background: #e2eeff;
+  color: #3275ff;
+}
+.fc-home-card--mission .fc-home-icon {
+  background: #def8ed;
+  color: #00ae92;
+}
+.fc-home-card--credit .fc-home-icon {
+  background: var(--credit-soft, #eee5ff);
+  color: var(--credit-ink, #9360f0);
+}
+.fc-home-card--donation .fc-home-icon {
+  background: #ffe5ee;
+  color: #f44075;
+}
+.fc-home-card .fc-home-action {
+  background: #deecff!important;
+  color: #3275ff!important;
+  border: 0!important;
+  min-height: 49px!important;
+  border-radius: 18px!important;
+  box-shadow: none!important;
+  font-size: 14px!important;
+  font-weight: 700!important;
+  padding: 0!important;
+  gap: 7px;
+}
+.fc-home-card--mission .fc-home-action {
+  background: #e1f7ee!important;
+  color: #00ae92!important;
+}
+.fc-home-card--credit .fc-home-action {
+  background: var(--credit-soft, #ede4ff)!important;
+  color: var(--credit-ink, #9360f0)!important;
+}
+.fc-home-card--donation .fc-home-action {
+  background: #ffe7ee!important;
+  color: #f44075!important;
+}
+.fc-home-card .fc-home-amount {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  white-space: normal;
+  gap: 5px;
+}
+.fc-home-card .fc-home-amount>strong {
+  font-size: inherit;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.fc-home-card .fc-home-amount>span {
+  margin-left: 0;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+}
+.fc-home-card .fc-home-job-strip>div>div {
+  min-width: 0;
+}
+.fc-home-composition {
+  justify-content: space-between;
+}
+.fc-home-composition span {
+  display: flex;
+  align-items: center;
+}
+.fc-home-composition span::before {
+  display: none!important;
+}
+.fc-home-composition i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  margin-right: 4px;
+  flex-shrink: 0;
+}
+.fc-home-card .fc-home-credit-value small {
+  font-size: 16px;
+  margin-left: 4px;
+}
+.fc-home-card--donation .fc-home-amount {
+  font-size: 43px;
+  color: #f44075;
+  line-height: 1.3;
+  letter-spacing: -1px;
+}
+.fc-home-card--donation .fc-home-amount>span {
+  font-size: 22px;
+}
+.fc-home-card--donation .fc-home-donation-percent strong {
+  font-size: 27px;
+}
+.fc-home-card .fc-home-change {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+}
+.fc-home-tools button {
+  min-width: 26px;
+  min-height: 26px;
+  width: 26px;
+  height: 26px;
+  padding: 3px!important;
+  background: transparent!important;
+  border: 0!important;
+}
+.fc-home-card :is(button,a):focus-visible {
+  outline: 3px solid #487aff;
+  outline-offset: 3px;
+}
+.fc-home-title-gallery {
+  position: relative;
+  aspect-ratio: 1153/221;
+  min-height: 156px;
+  background: #edf4ff;
+  border-radius: 21px;
+  box-shadow: 0 5px 10px #719ac712;
+}
+.fc-home-title-gallery>img {
+  object-fit: cover;
+}
+.fc-home-title-gallery>div {
+  height: 100%;
+  min-height: 0!important;
+  padding: 0 26px!important;
+  grid-template-columns: minmax(0,.62fr) repeat(2,minmax(0,1fr));
+  gap: 14px!important;
+}
+.fc-home-title-gallery[data-title-count="1"]>div {
+  grid-template-columns: minmax(0,.62fr) minmax(0,2fr);
+}
+.fc-home-title-gallery .fc-home-title-button {
+  min-height: 0;
+  align-self: stretch;
+  padding-bottom: 16px;
+}
+@container(max-width:350px) {
+  .fc-home-card--asset .fc-home-amount {
+  font-size: 30px;
+}
+  .fc-home-card--donation .fc-home-amount {
+  font-size: 37px;
+}
+  .fc-home-card .fc-home-amount>strong {
+  font-size: clamp(22px,9cqi,37px);
+}
+}
+@media(max-width:1050px) {
+  .fc-home-card-content {
+  padding: 20px 16px 16px;
+}
+  .fc-home-card--news .fc-home-card-content {
+  padding: 22px;
+}
+}
+@media(max-width:560px) {
+  .fc-home-title-gallery {
+  height: 146px;
+  min-height: 146px;
+  aspect-ratio: auto;
+  overflow-x: auto!important;
+}
+  .fc-home-title-gallery>img {
+  width: 760px;
+  max-width: none;
+  height: 146px;
+}
+  .fc-home-title-gallery>div {
+  min-width: 760px;
+  height: 146px;
+}
+  .fc-home-card--asset .fc-home-amount {
+  font-size: 32px;
+}
+}
+@media(prefers-reduced-motion:reduce) {
+  .fc-home-card * {
+  transition: none!important;
+}
+}
+
+
+.fc-home-card--credit .fc-home-progress,.fc-home-card--credit .fc-home-progress::-webkit-progress-bar{background:var(--credit-soft,#eadff9)}.fc-home-card--credit .fc-home-progress::-webkit-progress-value{background:var(--credit-tier-color,#9960ff)}.fc-home-card--credit .fc-home-progress::-moz-progress-bar{background:var(--credit-tier-color,#9960ff)}
+.fc-home-card .fc-home-mission-list .fc-home-more{border:0;padding:2px 0 15px;min-height:0;width:auto;color:#00ae92}
+
+.fc-home-card--news .fc-home-icon{border-radius:8px;background:#e7eff8;color:#92aaca}.fc-home-card .fc-home-news-list>button{border-radius:0!important}
+
+.fc-home-card--donation .fc-home-amount>strong{font-size:inherit}
+.fc-home-settings-options{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:18px 0}.fc-home-settings-options label{display:flex;align-items:center;gap:8px;font-size:14px;padding:9px;background:#f5f8ff;border-radius:10px}.fc-home-settings-options input{width:17px;height:17px;accent-color:#387aff}.fc-home-settings-order-heading{margin:22px 0 12px;font-size:18px;font-weight:700}.fc-home-settings-order>li{display:flex;align-items:center;padding:10px 0;gap:8px;font-size:14px;border-bottom:1px solid #edf1f7}.fc-home-settings-order>li>span{flex:1}.fc-home-settings-order button{border-radius:7px!important;background:#f0f5ff!important;padding:6px!important;display:flex;min-height:32px;width:32px;color:#0b1734!important}.fc-home-settings-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:18px}.fc-home-settings-actions button{padding:12px 20px!important;border-radius:12px!important;font-size:14px;font-weight:700;min-height:45px}.fc-home-settings-actions button:first-child{background:#eff4fc!important;color:#627b9f!important}.fc-home-settings-actions button:last-child{background:#377aff!important;color:white!important}
+@media(max-width:560px){.fc-home-settings-options{gap:6px}.fc-home-settings-options label{font-size:12px;padding:9px 6px}}
+
+/* Approved home presentation. Shared management surfaces keep their defaults. */
+.fc-home-page{padding:32px;max-width:1600px;font-family:'Finclass NanumSquareNeo',Arial,sans-serif}
+.fc-home-page> * + *{margin-top:24px}
+.fc-home-grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:16px}
+.fc-home-grid>[data-dashboard-card],.fc-home-grid>div{grid-column:span var(--span,12);grid-row:span var(--rows,1);min-width:0}
+@media(max-width:800px){.fc-home-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.fc-home-grid>[data-dashboard-card],.fc-home-grid>div{grid-column:span 1;grid-row:span 1}.fc-home-grid>[data-dashboard-card="news"],.fc-home-grid>div:has(.fc-home-card--news),.fc-home-grid>div:only-child{grid-column:span 2}}
+@media(max-width:560px){.fc-home-grid{grid-template-columns:minmax(0,1fr)}.fc-home-grid>[data-dashboard-card],.fc-home-grid>div,.fc-home-grid>[data-dashboard-card="news"],.fc-home-grid>div:has(.fc-home-card--news),.fc-home-grid>div:only-child{grid-column:span 1}}
+.fc-home-card{font-family:'Finclass NanumSquareNeo',Arial,sans-serif;font-variant-numeric:tabular-nums;line-height:normal;container-type:normal}
+.fc-home-card h2,.fc-home-card p{margin:0}
+.fc-home-card button{font-family:inherit}
+.fc-home-card-heading h2{line-height:1.35}
+.fc-home-card-content{container-type:inline-size}
+.fc-home-card--asset .fc-home-amount>strong{font-size:inherit;font-weight:inherit}
+.fc-home-card .fc-home-job-strip small{display:block}
+.fc-home-card .fc-home-job-strip strong{font-weight:700}
+.fc-home-title-gallery--reference{aspect-ratio:1153/221;min-height:0;font-family:'Finclass NanumSquareNeo',Arial,sans-serif;container-type:inline-size;overflow:hidden}
+.fc-home-title-gallery--reference>img{position:relative;display:block;width:100%;height:auto}
+.fc-home-title-gallery--reference>.fc-home-gallery-greeting{position:absolute;left:3.3%;top:24%;width:18%;height:auto;display:block;padding:0!important;min-width:0;line-height:1.25}
+.fc-home-gallery-greeting p{margin:0 0 6px;color:#3275ff;font-size:clamp(9px,1.1cqi,13px);font-weight:700}
+.fc-home-gallery-greeting h1{margin:0;font-size:clamp(16px,3.4cqi,39px);font-weight:800;letter-spacing:-1px;color:#08132d;overflow-wrap:anywhere}
+.fc-home-gallery-greeting h1 span{display:block}
+.fc-home-gallery-title{position:absolute;top:35%;height:31%;display:flex;align-items:center;justify-content:center;padding:0 8px;border:0;background:transparent;color:#fff;cursor:pointer;font:800 clamp(11px,2.15cqi,26px)/1.2 'Finclass NanumSquareNeo',Arial,sans-serif;letter-spacing:-.5px;text-shadow:0 1px 2px #18294f60}
+.fc-home-gallery-title--gold{left:32%;width:21%}
+.fc-home-gallery-title--navy{left:66%;width:23%;top:39%}
+.fc-home-gallery-title span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.fc-home-gallery-title:focus-visible{outline:3px solid #487aff;outline-offset:4px;border-radius:8px}
+@media(max-width:1050px){.fc-home-page{padding:22px}.fc-home-card{min-height:380px}.fc-home-card.fc-home-card--compact{min-height:342px}.fc-home-card-heading h2{font-size:20px}}
+@media(max-width:800px){.fc-home-page{padding:18px}.fc-home-card{min-height:370px}}
+@media(max-width:560px){.fc-home-page{padding:14px 12px}.fc-home-card,.fc-home-card.fc-home-card--compact{min-height:354px}.fc-home-card--news{min-height:390px}.fc-home-title-gallery--reference{width:100%;height:146px;min-height:146px;aspect-ratio:auto;overflow-x:auto}.fc-home-title-gallery--reference>img{width:760px;height:146px;max-width:none}.fc-home-title-gallery--reference>.fc-home-gallery-greeting{left:25px;top:35px;width:137px}.fc-home-gallery-greeting h1{font-size:23px}.fc-home-gallery-greeting p{font-size:9px}.fc-home-gallery-title{top:51px;height:45px;font-size:15px}.fc-home-gallery-title--gold{left:243px;width:160px}.fc-home-gallery-title--navy{left:502px;width:175px;top:57px}}
