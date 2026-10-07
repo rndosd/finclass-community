@@ -2,14 +2,8 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import AppLayout from "../../components/layout/AppLayout";
 import Button from "../../components/ui/Button";
-import { ArrowRight, Banknote, Bell, CreditCard, Database, LayoutDashboard, Scale, ShieldCheck, Trash2, TrendingUp, UserCheck, Server, Zap } from "lucide-react";
+import { ArrowRight, Bell, Database, ShieldCheck, TrendingUp } from "lucide-react";
 const menuItems = [{
-  title: "교사 승인 관리",
-  desc: "대기 중인 교사 계정을 검토하고 승인 상태를 관리합니다.",
-  path: "/admin/teachers",
-  icon: <UserCheck className="h-6 w-6" />,
-  color: "bg-blue-600"
-}, {
   title: "공지 관리",
   desc: "운영 공지와 시스템 안내 문구를 확인하고 정리합니다.",
   path: "/admin/notices",
@@ -27,30 +21,6 @@ const menuItems = [{
   path: "/admin/stock-categories",
   icon: <Database className="h-6 w-6" />,
   color: "bg-violet-500"
-}, {
-  title: "학급통계",
-  desc: "학급 활동량과 핵심 통계를 빠르게 확인합니다.",
-  path: "/admin/dashboard",
-  icon: <LayoutDashboard className="h-6 w-6" />,
-  color: "bg-indigo-500"
-}, {
-  title: "데이터 전송량 계측",
-  desc: "페이지별 Firestore payload 추정치를 학급과 source 기준으로 확인합니다.",
-  path: "/admin/client-telemetry",
-  icon: <Database className="h-6 w-6" />,
-  color: "bg-cyan-600"
-}, {
-  title: "플랜 관리",
-  desc: "FREE와 PRO 플랜 상태와 정책을 운영 관점에서 관리합니다.",
-  path: "/admin/plans",
-  icon: <Zap className="h-6 w-6" />,
-  color: "bg-amber-500"
-}, {
-  title: "전체 초기화",
-  desc: "시스템 전반의 데이터를 정리하거나 초기화할 때 사용하는 도구입니다.",
-  path: "/admin/global-reset",
-  icon: <Trash2 className="h-6 w-6" />,
-  color: "bg-rose-500"
 }];
 const MasterHub = () => {
   const navigate = useNavigate();

@@ -1,4 +1,4 @@
-import { House as HomeIcon, Newspaper, Gauge, Target, CurrencyDollar as DollarSign, ChartLine as CandlestickChart, Buildings as Building2, Briefcase, BriefcaseMetal as BriefcaseBusiness, Receipt as ReceiptText, Siren, Gavel, Storefront as ShoppingCart, ArrowsLeftRight, Users, UserPlus, UserMinus, Key as KeyRound, Lock, UserGear as UserCog, Coins, ChartBar as BarChart3, GraduationCap, Medal as Award, SlidersHorizontal, GameController as Gamepad2, ShieldCheck, SquaresFour as LayoutDashboard, Clock as Clock3, Lightning as Zap, BookOpenText } from "@phosphor-icons/react";
+import { House as HomeIcon, Newspaper, Gauge, Target, CurrencyDollar as DollarSign, ChartLine as CandlestickChart, Buildings as Building2, Briefcase, BriefcaseMetal as BriefcaseBusiness, Receipt as ReceiptText, Siren, Gavel, Storefront as ShoppingCart, ArrowsLeftRight, Users, UserPlus, UserMinus, Key as KeyRound, Lock, UserGear as UserCog, Coins, ChartBar as BarChart3, GraduationCap, Medal as Award, SlidersHorizontal, GameController as Gamepad2, ShieldCheck, SquaresFour as LayoutDashboard, Clock as Clock3 } from "@phosphor-icons/react";
 import { isLocalRuntime } from "../utils/runtimeAccess";
 export const mainNavItems = [{
   label: "홈",
@@ -111,14 +111,6 @@ export const adminNavItems = [{
     label: "마스터 허브",
     path: "/admin/master",
     icon: UserCog
-  }, {
-    label: "운영 통계",
-    path: "/admin/dashboard",
-    icon: LayoutDashboard
-  }, {
-    label: "플랜 관리",
-    path: "/admin/plans",
-    icon: Zap
   }]
 }, {
   label: "학급 관리",

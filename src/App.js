@@ -1,8 +1,8 @@
-import React, { Suspense, useEffect, useRef } from "react";
+import { Suspense, useEffect, useRef } from "react";
 import { Routes, Route, Navigate, Outlet, useLocation } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import PageErrorBoundary from "./components/ui/PageErrorBoundary";
-import { Login, ChangePasswordPage, TeacherSignup, AccountManagement, LandingPage, PrivacyPolicyPage, SupportInfoPage, MasterHub, MasterDashboard, MasterPlanManager, GlobalResetPage, TeacherApprovalPage, NoticeManagementPage, StockAdjustmentPage, StockCategoriesManagerPage, ClientTelemetryPage, StudentDashboard, AssetsPage, Bank, StockPage, TaxDash, LaborDash, JobBoardPage, JobSeekerBoardPage, JobBoardDashboardPage, Store, PolicePage, Credit, AssemblyHome, LawBoard, MissionDashboard, RealEstatePage, NewsPage, Marketplace, GameCenter, MiniQuizManagerPage, MiniQuizStudentPage, CredentialsPage, CaseLibraryPage, CaseLibraryDashboardPage, CaseLibraryDetailPage, CaseLibraryComposerPage, CaseLibraryRequestsPage, CaseLibraryRequestComposerPage, CaseLibraryRequestDetailPage, CaseLibraryPdfBuilderPage, FloatingAiAssistant, AdminFinanceManager, AdminPermissionManager, StudentRegistration, DeleteStudents, DashboardSettings, ClassTimeSettings, AccessDeniedPage, NotFoundPage, StockProvider, BankProvider } from "./routes/lazyPages";
+import { Login, ChangePasswordPage, TeacherSignup, AccountManagement, LandingPage, PrivacyPolicyPage, SupportInfoPage, MasterHub, NoticeManagementPage, StockAdjustmentPage, StockCategoriesManagerPage, StudentDashboard, AssetsPage, Bank, StockPage, TaxDash, LaborDash, JobBoardPage, JobSeekerBoardPage, JobBoardDashboardPage, Store, PolicePage, Credit, AssemblyHome, LawBoard, MissionDashboard, RealEstatePage, NewsPage, Marketplace, GameCenter, MiniQuizManagerPage, MiniQuizStudentPage, CredentialsPage, CaseLibraryPage, CaseLibraryDashboardPage, CaseLibraryDetailPage, CaseLibraryComposerPage, CaseLibraryRequestsPage, CaseLibraryRequestComposerPage, CaseLibraryRequestDetailPage, CaseLibraryPdfBuilderPage, FloatingAiAssistant, AdminFinanceManager, AdminPermissionManager, StudentRegistration, DeleteStudents, ClassTimeSettings, AccessDeniedPage, NotFoundPage, StockProvider, BankProvider } from "./routes/lazyPages";
 
 // === Provider Contexts ===
 import { UserProvider, useUser } from "./contexts/UserContext";
@@ -199,26 +199,26 @@ const AppRoutes = () => {
         <Route path="/signup/teacher" element={userData?.status !== "approved" ? <TeacherSignup /> : <Navigate to="/dashboard" replace />} />
         <Route path="/privacy" element={<PrivacyPolicyPage />} />
         <Route path="/support-info" element={<SupportInfoPage />} />
-        
-        
+
+
 
         {/* ??녔닼?[MASTER ADMIN - ??뽯뮞???온?귐딆쁽] */}
         <Route path="/admin" element={<ProtectedRoute allowedRoles={["admin"]}>
               <Outlet />
             </ProtectedRoute>}>
           <Route path="master" element={<MasterHub />} />
-          <Route path="dashboard" element={<MasterDashboard />} />
-          <Route path="plans" element={<MasterPlanManager />} />
-          <Route path="global-reset" element={<GlobalResetPage />} />
-          <Route path="teachers" element={<TeacherApprovalPage />} />
+
+
+
+
           <Route path="notices" element={<NoticeManagementPage />} />
           <Route path="stock-adjustment" element={<StockAdjustmentPage />} />
           <Route path="stock-categories" element={<StockCategoriesManagerPage />} />
-          <Route path="client-telemetry" element={<ClientTelemetryPage />} />
-          
-          
-          
-          
+
+
+
+
+
         </Route>
 
         {/* ?維??낆쐠?[TEACHER/MANAGE - ??놃닋 ?온?? */}
@@ -231,9 +231,7 @@ const AppRoutes = () => {
           <Route path="permissions" element={<ProtectedRoute allowedRoles={["admin", "teacher"]}>
                 <AdminPermissionManager />
               </ProtectedRoute>} />
-          <Route path="dashboard" element={<ProtectedRoute allowedRoles={["admin", "teacher"]}>
-                <DashboardSettings />
-              </ProtectedRoute>} />
+
           <Route path="time-settings" element={<ProtectedRoute allowedRoles={["admin", "teacher"]}>
                 <ClassTimeSettings />
               </ProtectedRoute>} />
@@ -252,7 +250,7 @@ const AppRoutes = () => {
         <Route path="/assets" element={<ProtectedRoute>
               <AssetsPage />
             </ProtectedRoute>} />
-        
+
 
         {/* ???疫뀀뜆??野껋럩????뺥돩???닌덉퍢 */}
         <Route path="/stock" element={withGate("stock", PERMISSIONS.STOCK, <StockProvider>
@@ -261,7 +259,7 @@ const AppRoutes = () => {
         <Route path="/bank" element={withGate("bank", PERMISSIONS.BANK, <BankProvider>
               <Bank />
             </BankProvider>)} />
-        
+
         <Route path="/police" element={withGate("police", PERMISSIONS.POLICE, <PolicePage />)} />
         <Route path="/tax" element={withGate("tax", PERMISSIONS.TAX, <TaxDash />)} />
         <Route path="/labor" element={withGate("labor", PERMISSIONS.LABOR, <LaborDash />)} />

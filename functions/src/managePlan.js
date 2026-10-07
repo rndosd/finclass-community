@@ -1,8 +1,8 @@
 const { onDocumentUpdated } = require("firebase-functions/v2/firestore");
-const { onCall, HttpsError } = require("firebase-functions/v2/https");
+
 const admin = require("../firebaseAdminCompat");
 const { logger } = require("firebase-functions");
-const { assertAdminFromClaims } = require("../utils/permissions");
+
 
 /**
  * 학급 planType이 변경되면 담당 교사의 custom claims.plan을 동기화합니다.
@@ -40,40 +40,3 @@ exports.syncPlanToCustomClaims = onDocumentUpdated(
         }
     },
 );
-
-/**
- * 관리자 UI에서 교사들의 실제 custom claims.plan 값을 조회합니다.
- */
-exports.getTeachersAuthClaims = onCall(async (request) => {
-    assertAdminFromClaims(request);
-
-    const { teacherUids } = request.data || {};
-    if (!Array.isArray(teacherUids) || teacherUids.length === 0) {
-        return {};
-    }
-
-    try {
-        const claimsMap = {};
-
-        await Promise.all(
-            teacherUids.map(async (uid) => {
-                if (!uid) return;
-                try {
-                    const user = await admin.auth().getUser(uid);
-                    claimsMap[uid] = user.customClaims?.plan || "FREE";
-                } catch (error) {
-                    logger.error(`교사(${uid}) 클레임 조회 실패:`, error);
-                    claimsMap[uid] = "ERROR";
-                }
-            }),
-        );
-
-        return claimsMap;
-    } catch (error) {
-        logger.error("교사 클레임 일괄 조회 중 서버 오류:", error);
-        throw new HttpsError(
-            "internal",
-            "교사 클레임 조회 중 서버 오류가 발생했습니다.",
-        );
-    }
-});

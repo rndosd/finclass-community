@@ -579,11 +579,11 @@ export default function AppLayout({
                       type="button"
                       onClick={() => {
                         setIsUserMenuOpen(false);
-                        navigate("/admin/dashboard");
+                        navigate("/admin/master");
                       }}
                       className="flex w-full items-center justify-start px-4 py-2 text-left text-sm font-semibold text-indigo-600 hover:bg-slate-100"
                     >
-                      <ShieldCheck className="h-4 w-4 mr-2" /> 관리자 대시보드
+                      <ShieldCheck className="h-4 w-4 mr-2" /> 운영 관리
                     </button>
                   )}
                   <button
